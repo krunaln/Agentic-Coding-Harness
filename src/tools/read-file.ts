@@ -1,12 +1,28 @@
 import { open } from 'node:fs/promises';
-import { tool } from 'langchain';
 import z from 'zod';
-import { resolveWorkspacePath, workspaceRoot } from './workspace.js';
+import type { ToolDefinition } from './types.js';
+import { resolveWorkspacePath, type Workspace } from './workspace.js';
+import { truncateTextHead, type TruncationDetails } from './truncation.js';
 
 const maxBytes = 1024 * 1024;
-const maxOutputChars = 20000;
+const readFileSchema = z.object({
+    path: z.string().describe('Path relative to the workspace root.'),
+    start_line: z.number().int().min(1).default(1),
+    end_line: z.number().int().min(1).optional(),
+}).strict();
 
-export async function readWorkspaceFile(input: { path: string; start_line: number; end_line?: number }, root = workspaceRoot) {
+export type ReadFileInput = z.infer<typeof readFileSchema>;
+export type ReadFileDetails = {
+    path: string;
+    totalLines: number;
+    startLine: number;
+    endLine: number;
+    hasMoreLines: boolean;
+    truncated: boolean;
+    truncation: TruncationDetails;
+};
+
+export async function readWorkspaceFile(input: ReadFileInput, root: string) {
     const target = await resolveWorkspacePath(input.path, root);
     const handle = await open(target, 'r');
     try {
@@ -32,21 +48,44 @@ export async function readWorkspaceFile(input: { path: string; start_line: numbe
         const end = Math.min(requestedEnd, input.start_line + 499, lines.length);
         const numbered = lines.slice(input.start_line - 1, end)
             .map((line, index) => `${input.start_line + index}: ${line}`).join('\n');
-        return JSON.stringify({ path: input.path, total_lines: lines.length,
-            content: numbered.slice(0, maxOutputChars),
-            truncated: end < Math.min(requestedEnd, lines.length) || numbered.length > maxOutputChars,
-            has_more_lines: end < lines.length });
+        const bounded = truncateTextHead(numbered, { maxBytes: 18_000, maxLines: 500 });
+        const outputEnd = bounded.details.output_lines > 0
+            ? input.start_line + bounded.details.output_lines - 1
+            : input.start_line - 1;
+        return { path: input.path, totalLines: lines.length,
+            content: bounded.content,
+            truncated: end < Math.min(requestedEnd, lines.length) || bounded.details.truncated,
+            truncation: bounded.details,
+            startLine: input.start_line, endLine: outputEnd, hasMoreLines: outputEnd < lines.length };
     } finally {
         await handle.close();
     }
 }
 
-export const readFile = tool((input) => readWorkspaceFile(input), {
-    name: 'read_file',
-    description: 'Read a UTF-8 workspace file with line numbers. Defaults to the first 200 lines; at most 500 lines and 20,000 characters per call. File limit: 1 MiB. Use start_line/end_line to read another range.',
-    schema: z.object({
-        path: z.string().describe('Path relative to the workspace root.'),
-        start_line: z.number().int().min(1).default(1),
-        end_line: z.number().int().min(1).optional(),
-    }),
-});
+export function createReadFileTool(workspace: Workspace): ToolDefinition<ReadFileInput, ReadFileDetails> {
+    return {
+        name: 'read_file',
+        label: 'Read file',
+        description: 'Read a UTF-8 workspace file with line numbers. Defaults to the first 200 lines; at most 500 lines and 20,000 bytes per call. File limit: 1 MiB. Use start_line/end_line to continue reading.',
+        schema: readFileSchema,
+        async execute(input) {
+            const result = await readWorkspaceFile(input, workspace.root);
+            const nextLine = result.endLine + 1;
+            const notice = result.truncated || result.hasMoreLines
+                ? `\n\n[More content available. Continue with start_line=${nextLine}.]`
+                : '';
+            return {
+                content: result.content + notice,
+                details: {
+                    path: result.path,
+                    totalLines: result.totalLines,
+                    startLine: result.startLine,
+                    endLine: result.endLine,
+                    hasMoreLines: result.hasMoreLines,
+                    truncated: result.truncated,
+                    truncation: result.truncation,
+                },
+            };
+        },
+    };
+}

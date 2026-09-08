@@ -1,21 +1,49 @@
-import 'dotenv/config';
 import { ChatGroq } from '@langchain/groq';
-import { HumanMessage, type BaseMessage, type AIMessage } from '@langchain/core/messages';
-import { agentTools } from '../tools/index.js';
+import { AIMessage, HumanMessage, SystemMessage, ToolMessage, type BaseMessage } from '@langchain/core/messages';
+import { ZodError } from 'zod';
+import { getGroqApiKey } from '../config/env.js';
+import { createModelTools, createToolDefinitions } from '../tools/index.js';
+import type { AnyToolDefinition } from '../tools/types.js';
+import { boundedToolText } from '../tools/truncation.js';
+import { createWorkspace, type Workspace } from '../tools/workspace.js';
 
 export type AgentEvent =
-    | { type: 'tool-started'; name: string; args: unknown }
-    | { type: 'tool-completed'; name: string; result: unknown; durationMs: number }
-    | { type: 'tool-failed'; name: string; error: string };
+    | { type: 'tool-started'; callId: string; name: string; label: string; args: unknown }
+    | { type: 'tool-repairing'; callId?: string; name?: string; label?: string; error: string; attempt: 1 }
+    | { type: 'tool-completed'; callId: string; name: string; label: string; content: string; details?: unknown; durationMs: number }
+    | { type: 'tool-failed'; callId: string; name: string; label: string; error: string; durationMs: number };
 
 type Model = {
     invoke(messages: BaseMessage[], options: { signal?: AbortSignal }): Promise<AIMessage>;
 };
 
-export function createAgent(providedModel?: Model) {
+export type CreateAgentOptions = {
+    workspace?: Workspace;
+    model?: Model;
+    failureModel?: Model;
+    tools?: AnyToolDefinition[];
+};
+
+export function createAgent(options: CreateAgentOptions = {}) {
+    const workspace = options.workspace ?? createWorkspace();
+    const definitions = options.tools ?? createToolDefinitions(workspace);
+    const modelTools = createModelTools(definitions, workspace);
     let history: BaseMessage[] = [];
     let running = false;
-    let model = providedModel;
+    let model = options.model;
+    let failureModel = options.failureModel;
+
+    function isMalformedToolCallError(error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        return message.includes('tool_use_failed')
+            || message.includes('Tool call validation failed')
+            || message.includes('tool call validation failed')
+            || message.includes('Failed to parse tool call arguments');
+    }
+
+    function errorMessage(error: unknown) {
+        return (error instanceof Error ? error.message : String(error)).slice(0, 1500);
+    }
 
     return {
         async run(prompt: string, onEvent: (event: AgentEvent) => void = () => {}, signal?: AbortSignal) {
@@ -24,13 +52,74 @@ export function createAgent(providedModel?: Model) {
             running = true;
             // Commit only completed turns so failed tool calls cannot corrupt history.
             const messages = [...history, new HumanMessage(prompt)];
+            let repairUsed = false;
             try {
-                model ??= new ChatGroq({ model: 'openai/gpt-oss-20b', temperature: 0 })
-                    .bindTools(agentTools);
+                if (!model) {
+                    const baseModel = new ChatGroq({
+                        apiKey: getGroqApiKey(),
+                        model: 'openai/gpt-oss-20b',
+                        temperature: 0,
+                    });
+                    model = baseModel.bindTools(modelTools);
+                    failureModel ??= baseModel;
+                }
+                const activeModel = model;
+
+                const finishWithFailure = async (reason: string) => {
+                    let response: AIMessage;
+                    if (failureModel) {
+                        try {
+                            response = await failureModel.invoke([
+                                ...messages,
+                                new SystemMessage(
+                                    `A tool call could not be completed after one repair attempt. `
+                                    + `Do not call any tools. Briefly tell the user that you could not complete the request and why. `
+                                    + `Failure: ${reason}`,
+                                ),
+                            ], { signal });
+                        } catch {
+                            response = new AIMessage(`I couldn't complete the request because the tool call remained invalid after one repair attempt.`);
+                        }
+                    } else {
+                        response = new AIMessage(`I couldn't complete the request because the tool call remained invalid after one repair attempt.`);
+                    }
+                    if (!response.text.trim()) {
+                        response = new AIMessage(`I couldn't complete the request because the tool call remained invalid after one repair attempt.`);
+                    }
+                    messages.push(response);
+                    history = messages;
+                    return response.text;
+                };
+
+                const invokeModel = async () => {
+                    try {
+                        return await activeModel.invoke(messages, { signal });
+                    } catch (error) {
+                        if (!isMalformedToolCallError(error)) throw error;
+                        const failure = errorMessage(error);
+                        if (repairUsed) return finishWithFailure(failure);
+                        repairUsed = true;
+                        onEvent({ type: 'tool-repairing', error: failure, attempt: 1 });
+                        try {
+                            return await activeModel.invoke([
+                                ...messages,
+                                new SystemMessage(
+                                    `Your previous tool call was rejected because its arguments did not match the provided schema. `
+                                    + `Repair it once: use the exact argument names and types from the tool schema, then issue the corrected tool call. `
+                                    + `Do not explain the error. Provider error: ${failure}`,
+                                ),
+                            ], { signal });
+                        } catch (retryError) {
+                            if (!isMalformedToolCallError(retryError)) throw retryError;
+                            return finishWithFailure(errorMessage(retryError));
+                        }
+                    }
+                };
                     
                 for (let step = 0; step < 10; step++) {
                     signal?.throwIfAborted();
-                    const response = await model.invoke(messages, { signal });
+                    const response = await invokeModel();
+                    if (typeof response === 'string') return response;
                     messages.push(response);
                     if (!response.tool_calls?.length) {
                         if (!response.text.trim()) throw new Error('Model returned no text and no tool calls.');
@@ -39,21 +128,63 @@ export function createAgent(providedModel?: Model) {
                     }
                     for (const call of response.tool_calls) {
                         signal?.throwIfAborted();
-                        onEvent({ type: 'tool-started', name: call.name, args: call.args });
+                        const callId = call.id ?? `${call.name}-${step}`;
+                        const selectedTool = definitions.find(tool => tool.name === call.name);
+                        const label = selectedTool?.label ?? call.name;
+                        onEvent({ type: 'tool-started', callId, name: call.name, label, args: call.args });
                         const started = performance.now();
                         try {
-                            const selectedTool = agentTools.find(tool => tool.name === call.name);
                             if (!selectedTool) {
-                                throw new Error(`Unknown tool: ${call.name}`);
+                                const failure = `Unknown tool requested: ${call.name}`;
+                                onEvent({ type: 'tool-failed', callId, name: call.name, label,
+                                    error: failure, durationMs: Math.round(performance.now() - started) });
+                                messages.push(new ToolMessage({
+                                    content: `${failure}. Retry once using one of the provided tool names.`,
+                                    tool_call_id: callId,
+                                    name: call.name,
+                                    status: 'error',
+                                }));
+                                if (repairUsed) return finishWithFailure(failure);
+                                repairUsed = true;
+                                onEvent({ type: 'tool-repairing', callId, name: call.name, label, error: failure, attempt: 1 });
+                                continue;
                             }
-                            const toolCall = { ...call, type: 'tool_call' as const };
-                            const result = await selectedTool.invoke(toolCall, { signal });
-                            messages.push(result);
-                            onEvent({ type: 'tool-completed', name: call.name, result: result.content,
+                            let input: unknown;
+                            try {
+                                input = await selectedTool.schema.parseAsync(call.args);
+                            } catch (error) {
+                                if (!(error instanceof ZodError)) throw error;
+                                const failure = `Invalid arguments for ${call.name}: ${error.issues
+                                    .map(issue => `${issue.path.join('.') || 'arguments'}: ${issue.message}`).join('; ')}`;
+                                onEvent({ type: 'tool-failed', callId, name: call.name, label,
+                                    error: failure, durationMs: Math.round(performance.now() - started) });
+                                messages.push(new ToolMessage({
+                                    content: `${failure}. Retry this tool call once using the exact schema argument names and types.`,
+                                    tool_call_id: callId,
+                                    name: call.name,
+                                    status: 'error',
+                                }));
+                                if (repairUsed) return finishWithFailure(failure);
+                                repairUsed = true;
+                                onEvent({ type: 'tool-repairing', callId, name: call.name, label, error: failure, attempt: 1 });
+                                continue;
+                            }
+                            const result = await selectedTool.execute(input, { workspace, signal });
+                            // Final safety net for every registered text tool, including
+                            // tools added later without their own structured truncation.
+                            const content = boundedToolText(result.content);
+                            messages.push(new ToolMessage({
+                                content,
+                                tool_call_id: callId,
+                                name: call.name,
+                            }));
+                            onEvent({ type: 'tool-completed', callId, name: call.name, label, content,
+                                details: result.details,
                                 durationMs: Math.round(performance.now() - started) });
                         } catch (error) {
-                            onEvent({ type: 'tool-failed', name: call.name,
-                                error: error instanceof Error ? error.message : String(error) });
+                            onEvent({ type: 'tool-failed', callId, name: call.name, label,
+                                error: error instanceof Error ? error.message : String(error),
+                                durationMs: Math.round(performance.now() - started) });
                             throw error;
                         }
                     }

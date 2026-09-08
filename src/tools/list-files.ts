@@ -1,12 +1,26 @@
 import { readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
-import { tool } from 'langchain';
 import z from 'zod';
-import { resolveWorkspacePath, workspaceRoot } from './workspace.js';
+import type { ToolDefinition } from './types.js';
+import { resolveWorkspacePath, type Workspace } from './workspace.js';
+import { truncateItemsHead } from './truncation.js';
 
 const excluded = new Set(['.git', 'node_modules', 'dist']);
+const listFilesSchema = z.object({
+    path: z.string().default('.'),
+    recursive: z.boolean().default(false),
+    limit: z.number().int().min(1).max(1000).default(200),
+}).strict();
 
-export async function listWorkspaceFiles(input: { path: string; recursive: boolean; limit: number }, root = workspaceRoot) {
+export type ListFilesInput = z.infer<typeof listFilesSchema>;
+export type ListFilesDetails = {
+    path: string;
+    entryCount: number;
+    truncated: boolean;
+    truncation: ReturnType<typeof truncateItemsHead<string>>['details'];
+};
+
+export async function listWorkspaceFiles(input: ListFilesInput, root: string) {
     const directory = await resolveWorkspacePath(input.path, root);
     if (!(await stat(directory)).isDirectory()) throw new Error('Path must be a directory.');
     const entries: string[] = [];
@@ -27,15 +41,29 @@ export async function listWorkspaceFiles(input: { path: string; recursive: boole
         }
     }
     await visit(directory, '');
-    return JSON.stringify({ path: input.path, entries, truncated });
+    const bounded = truncateItemsHead(entries, JSON.stringify, { maxBytes: 18_000, maxLines: 500 });
+    return { entries: bounded.items, truncated: truncated || bounded.details.truncated,
+        truncation: bounded.details };
 }
 
-export const listFiles = tool((input) => listWorkspaceFiles(input), {
-    name: 'list_files',
-    description: 'List workspace files and directories. Paths are relative to the requested directory. Skips .git, node_modules, dist, and symlinks. Start with path ".".',
-    schema: z.object({
-        path: z.string().default('.'),
-        recursive: z.boolean().default(false),
-        limit: z.number().int().min(1).max(1000).default(200),
-    }),
-});
+export function createListFilesTool(workspace: Workspace): ToolDefinition<ListFilesInput, ListFilesDetails> {
+    return {
+        name: 'list_files',
+        label: 'List files',
+        description: 'List workspace files and directories. Paths are relative to the requested directory. Skips .git, node_modules, dist, and symlinks. Start with path ".".',
+        schema: listFilesSchema,
+        async execute(input) {
+            const result = await listWorkspaceFiles(input, workspace.root);
+            const notice = result.truncated ? '\n\n[Results truncated. Narrow the path or disable recursive listing.]' : '';
+            return {
+                content: (result.entries.join('\n') || '(empty directory)') + notice,
+                details: {
+                    path: input.path,
+                    entryCount: result.entries.length,
+                    truncated: result.truncated,
+                    truncation: result.truncation,
+                },
+            };
+        },
+    };
+}

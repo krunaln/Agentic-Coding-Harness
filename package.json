@@ -1,13 +1,17 @@
 {
-  "name": "agent_study",
+  "name": "agentic-coding-harness",
   "version": "1.0.0",
   "description": "",
   "main": "dist/index.js",
+  "bin": {
+    "myai": "dist/index.js"
+  },
   "scripts": {
     "dev": "tsx src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "link-cli": "npm run build && npm link"
   },
   "keywords": [],
   "author": "",
