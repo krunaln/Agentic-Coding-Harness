@@ -6,10 +6,14 @@ import { createModelTools, createToolDefinitions } from '../tools/index.js';
 import type { AnyToolDefinition } from '../tools/types.js';
 import { boundedToolText } from '../tools/truncation.js';
 import { createWorkspace, type Workspace } from '../tools/workspace.js';
+import type { ApprovalRequest, PermissionMode } from '../permissions.js';
 
 export type AgentEvent =
     | { type: 'tool-started'; callId: string; name: string; label: string; args: unknown }
     | { type: 'tool-repairing'; callId?: string; name?: string; label?: string; error: string; attempt: 1 }
+    | { type: 'permission-requested'; callId: string; name: string; label: string; args: unknown }
+    | { type: 'permission-granted'; callId: string; name: string; label: string }
+    | { type: 'permission-denied'; callId: string; name: string; label: string }
     | { type: 'tool-completed'; callId: string; name: string; label: string; content: string; details?: unknown; durationMs: number }
     | { type: 'tool-failed'; callId: string; name: string; label: string; error: string; durationMs: number };
 
@@ -22,16 +26,27 @@ export type CreateAgentOptions = {
     model?: Model;
     failureModel?: Model;
     tools?: AnyToolDefinition[];
+    permissionMode?: PermissionMode;
+    requestApproval?: (request: ApprovalRequest) => Promise<boolean>;
+    initialHistory?: BaseMessage[];
+    onHistoryCommitted?: (messages: BaseMessage[]) => Promise<void> | void;
 };
 
 export function createAgent(options: CreateAgentOptions = {}) {
     const workspace = options.workspace ?? createWorkspace();
     const definitions = options.tools ?? createToolDefinitions(workspace);
     const modelTools = createModelTools(definitions, workspace);
-    let history: BaseMessage[] = [];
+    let history: BaseMessage[] = [...(options.initialHistory ?? [])];
     let running = false;
     let model = options.model;
     let failureModel = options.failureModel;
+    const permissionMode = options.permissionMode ?? 'ask';
+
+    async function commit(messages: BaseMessage[], previousLength: number) {
+        const added = messages.slice(previousLength);
+        await options.onHistoryCommitted?.(added);
+        history = messages;
+    }
 
     function isMalformedToolCallError(error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
@@ -45,6 +60,22 @@ export function createAgent(options: CreateAgentOptions = {}) {
         return (error instanceof Error ? error.message : String(error)).slice(0, 1500);
     }
 
+    async function requestToolApproval(request: ApprovalRequest, signal?: AbortSignal) {
+        if (!options.requestApproval) return false;
+        if (!signal) return options.requestApproval(request);
+        signal.throwIfAborted();
+        let abort: (() => void) | undefined;
+        const aborted = new Promise<never>((_, reject) => {
+            abort = () => reject(signal.reason ?? new DOMException('Aborted', 'AbortError'));
+            signal.addEventListener('abort', abort, { once: true });
+        });
+        try {
+            return await Promise.race([options.requestApproval(request), aborted]);
+        } finally {
+            if (abort) signal.removeEventListener('abort', abort);
+        }
+    }
+
     return {
         async run(prompt: string, onEvent: (event: AgentEvent) => void = () => {}, signal?: AbortSignal) {
             if (running) throw new Error('An agent turn is already running.');
@@ -52,6 +83,7 @@ export function createAgent(options: CreateAgentOptions = {}) {
             running = true;
             // Commit only completed turns so failed tool calls cannot corrupt history.
             const messages = [...history, new HumanMessage(prompt)];
+            const previousLength = history.length;
             let repairUsed = false;
             try {
                 if (!model) {
@@ -87,7 +119,7 @@ export function createAgent(options: CreateAgentOptions = {}) {
                         response = new AIMessage(`I couldn't complete the request because the tool call remained invalid after one repair attempt.`);
                     }
                     messages.push(response);
-                    history = messages;
+                    await commit(messages, previousLength);
                     return response.text;
                 };
 
@@ -123,7 +155,7 @@ export function createAgent(options: CreateAgentOptions = {}) {
                     messages.push(response);
                     if (!response.tool_calls?.length) {
                         if (!response.text.trim()) throw new Error('Model returned no text and no tool calls.');
-                        history = messages;
+                        await commit(messages, previousLength);
                         return response.text;
                     }
                     for (const call of response.tool_calls) {
@@ -168,6 +200,24 @@ export function createAgent(options: CreateAgentOptions = {}) {
                                 repairUsed = true;
                                 onEvent({ type: 'tool-repairing', callId, name: call.name, label, error: failure, attempt: 1 });
                                 continue;
+                            }
+                            if (selectedTool.permission && permissionMode === 'ask') {
+                                onEvent({ type: 'permission-requested', callId, name: call.name, label, args: input });
+                                const approved = await requestToolApproval({
+                                    callId, toolName: call.name, toolLabel: label, args: input,
+                                }, signal);
+                                if (!approved) {
+                                    const failure = `Permission denied for ${call.name}.`;
+                                    onEvent({ type: 'permission-denied', callId, name: call.name, label });
+                                    messages.push(new ToolMessage({
+                                        content: failure,
+                                        tool_call_id: callId,
+                                        name: call.name,
+                                        status: 'error',
+                                    }));
+                                    continue;
+                                }
+                                onEvent({ type: 'permission-granted', callId, name: call.name, label });
                             }
                             const result = await selectedTool.execute(input, { workspace, signal });
                             // Final safety net for every registered text tool, including

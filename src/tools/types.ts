@@ -17,6 +17,8 @@ export type ToolDefinition<TInput = unknown, TDetails = unknown> = {
     name: string;
     label: string;
     description: string;
+    /** Side effect used by the runner's permission policy. */
+    permission?: 'workspace-write' | 'command-execution';
     schema: z.ZodType<TInput, z.ZodTypeDef, any>;
     execute(
         input: TInput,

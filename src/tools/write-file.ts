@@ -26,6 +26,7 @@ export function createWriteFileTool(
         name: 'write_file',
         label: 'Write file',
         description: 'Create or completely replace a UTF-8 file inside the workspace. Creates missing parent directories. Use edit_file for targeted changes to an existing file.',
+        permission: 'workspace-write',
         schema,
         execute(input, context) {
             return queue.run(async () => {

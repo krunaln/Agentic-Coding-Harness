@@ -20,6 +20,7 @@ export function createRemoveDirectoryTool(
         name: 'remove_directory',
         label: 'Remove directory',
         description: 'Permanently remove a workspace directory. It must be empty unless recursive is explicitly true. The workspace root itself can never be removed.',
+        permission: 'workspace-write',
         schema,
         execute(input, context) {
             return queue.run(async () => {

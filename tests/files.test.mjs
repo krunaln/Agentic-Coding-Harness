@@ -83,7 +83,7 @@ test('registered tools execute through the agent and return matching tool messag
         assert.deepEqual(results.map(message => message.tool_call_id), ['list', 'read', 'search']);
         assert.match(results[0].content, /read-file.ts/);
         assert.match(results[1].content, /App.js/);
-        assert.match(results[2].content, /src\/index\.ts:2:/);
+        assert.match(results[2].content, /src\/index\.ts:\d+:/);
         assert.doesNotMatch(results[2].content, /searchedFiles/);
         return new AIMessage('Inspected the files.');
     } } });

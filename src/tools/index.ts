@@ -3,6 +3,7 @@ import { tool } from 'langchain';
 import z from 'zod';
 import { createDeleteFileTool } from './delete-file.js';
 import { createEditFileTool } from './edit-file.js';
+import { createExecuteCommandTool } from './execute-command.js';
 import { FileMutationQueue } from './file-mutation-queue.js';
 import { createListFilesTool } from './list-files.js';
 import { createReadFileTool } from './read-file.js';
@@ -61,6 +62,7 @@ export function createToolDefinitions(workspace: Workspace): AnyToolDefinition[]
         createEditFileTool(workspace, mutationQueue),
         createDeleteFileTool(workspace, mutationQueue),
         createRemoveDirectoryTool(workspace, mutationQueue),
+        createExecuteCommandTool(workspace),
     ];
 }
 

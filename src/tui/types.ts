@@ -12,7 +12,7 @@ export type ToolEntry = {
     name: string;
     label: string;
     args: unknown;
-    status: 'running' | 'repairing' | 'completed' | 'failed';
+    status: 'running' | 'awaiting-approval' | 'repairing' | 'completed' | 'failed' | 'denied';
     content?: string;
     details?: unknown;
     durationMs?: number;

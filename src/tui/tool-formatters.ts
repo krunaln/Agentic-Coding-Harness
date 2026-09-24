@@ -42,6 +42,13 @@ export function summarizeToolResult(name: string, details: unknown, content?: st
     if (name === 'remove_directory') {
         return `Removed ${value.path ?? 'directory'}${value.recursive ? ' recursively' : ''}`;
     }
+    if (name === 'execute_command') {
+        const exit = value.timedOut ? 'timed out' : `exit ${value.exitCode ?? 'unknown'}`;
+        const stdout = record(value.stdoutTruncation);
+        const stderr = record(value.stderrTruncation);
+        const output = Number(stdout?.total_bytes ?? 0) + Number(stderr?.total_bytes ?? 0);
+        return `${value.shell ?? 'shell'} · ${exit} · ${value.durationMs ?? 0} ms · ${output} output bytes`;
+    }
     const summary = Object.entries(value)
         .filter(([key]) => key !== 'truncation')
         .slice(0, 4)

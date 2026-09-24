@@ -4,15 +4,19 @@ import type { ToolEntry } from '../types.js';
 
 const appearance = {
     running: { icon: '◌', color: 'yellow', text: 'Running' },
+    'awaiting-approval': { icon: '?', color: 'cyan', text: 'Waiting for approval' },
     repairing: { icon: '↻', color: 'yellow', text: 'Repairing call' },
     completed: { icon: '✓', color: 'green', text: 'Completed' },
     failed: { icon: '✗', color: 'red', text: 'Failed' },
+    denied: { icon: '⊘', color: 'red', text: 'Permission denied' },
 } as const;
 
 export function ToolCall({ tool }: { tool: ToolEntry }) {
     const state = appearance[tool.status];
     const result = tool.status === 'failed'
         ? tool.error
+        : tool.status === 'denied'
+            ? 'This tool was not executed.'
         : tool.status === 'completed'
             ? summarizeToolResult(tool.name, tool.details, tool.content)
             : undefined;

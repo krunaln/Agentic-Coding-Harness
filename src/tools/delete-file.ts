@@ -19,6 +19,7 @@ export function createDeleteFileTool(
         name: 'delete_file',
         label: 'Delete file',
         description: 'Permanently delete one existing regular file inside the workspace. This cannot delete directories. Read or inspect the target first when its contents matter.',
+        permission: 'workspace-write',
         schema,
         execute(input, context) {
             return queue.run(async () => {
