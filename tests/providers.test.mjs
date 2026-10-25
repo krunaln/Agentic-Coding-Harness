@@ -66,11 +66,13 @@ test('model discovery reads connected OpenAI-compatible services without changin
     await settings.addProvider('ollama', { type: 'ollama', baseUrl }, 'global');
     await settings.addProvider('freellmapi', { type: 'freellmapi', baseUrl }, 'global');
     await settings.addModel('ollama:qwen', { provider: 'ollama', model: 'qwen' }, 'global');
+    await settings.addModel('freellmapi:old', { provider: 'freellmapi', model: 'old' }, 'global');
     await settings.setDefaultModel('ollama:qwen', 'global');
     await settings.discoverModels();
     assert.equal(settings.resolveModel('core').name, 'ollama:qwen');
     assert.ok(settings.models().some(model => model.name === 'freellmapi:qwen'));
     assert.equal(settings.models().some(model => model.name === 'freellmapi:llama3'), false);
+    assert.equal(settings.models().some(model => model.name === 'freellmapi:old'), false);
 });
 
 test('disconnected providers do not expose their models', async t => {

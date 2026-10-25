@@ -165,7 +165,8 @@ export class SettingsStore {
                     .map(item => item.id)
                     .filter((id): id is string => Boolean(id));
                 if (!discovered.length) continue;
-                const models = { ...(this.global.models ?? {}) };
+                const models = Object.fromEntries(Object.entries(this.global.models ?? {})
+                    .filter(([, model]) => model.provider !== name));
                 for (const model of discovered) models[`${name}:${model}`] = { provider: name as ProviderType, model, scope: 'global' };
                 this.global.models = models;
             } catch { /* A provider may be offline; keep the other catalogs. */ }
