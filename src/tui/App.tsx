@@ -60,7 +60,12 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
         workspace, permissionMode, initialHistory: target.history,
         modelFactory: tools => {
             const choice = settings.resolveModel('core', modelOverride, providerOverride);
-            if (!choice) throw new Error('No model is configured. Add a model with /model add.');
+            if (!choice) {
+                const connected = settings.providers().some(item => item.global || item.project);
+                throw new Error(connected
+                    ? 'No model is available for the connected logins. Use /model to choose a model.'
+                    : 'No login is connected. Use /login to connect an AI service first.');
+            }
             const provider = settings.provider(choice.config.provider);
             if (!provider) throw new Error(`Provider ${choice.config.provider} is not configured.`);
             return createProviderModel(choice, provider).bindTools(tools);
