@@ -4,7 +4,19 @@ This list is for building MyAI. It is not a plan for one user request.
 
 ## Next
 
-- [ ] HAR-001 Add plan mode
+- [ ] HAR-001 Add more AI providers
+  - Add OpenAI, Groq, FreeLLMAPI, and Ollama.
+  - Keep each provider behind the same simple interface.
+  - Keep provider settings in one place.
+  - Make it easy to choose a provider and model.
+
+- [ ] HAR-002 Choose models for different tasks
+  - Choose one model for normal coding work.
+  - Choose another model for small or cheap tasks.
+  - Allow separate choices for summaries, tool use, and reviews.
+  - Keep the default setup simple.
+
+- [ ] HAR-003 Add plan mode
   - MyAI should first make a plan, show it, and wait for approval.
   - The user can change the plan before work starts.
   - MyAI can read files while planning.
@@ -13,9 +25,9 @@ This list is for building MyAI. It is not a plan for one user request.
 
 ## Backlog
 
-- [ ] HAR-002 Add project docs
-- [ ] HAR-003 Add the remaining commands
-- [ ] HAR-004 Add more tests
-- [ ] HAR-005 Run safe read-only tools at the same time. Keep file changes in order.
-- [ ] HAR-006 Show a file diff after every file change.
-- [ ] HAR-007 Publish MyAI to npm
+- [ ] HAR-004 Add project docs
+- [ ] HAR-005 Add the remaining commands
+- [ ] HAR-006 Add more tests
+- [ ] HAR-007 Run safe read-only tools at the same time. Keep file changes in order.
+- [ ] HAR-008 Show a file diff after every file change.
+- [ ] HAR-009 Publish MyAI to npm
