@@ -15,6 +15,7 @@ export type CommandContext = {
     removeModel(args: string): Promise<void>;
     setDefaultModel(args: string): Promise<void>;
     setTaskModel(args: string): Promise<void>;
+    startModelMenu(): void;
     quit(): void;
 };
 

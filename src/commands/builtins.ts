@@ -28,6 +28,7 @@ export const builtinCommands: SlashCommand[] = [
     { name: 'models', description: 'Show available models', execute: (_args, context) => context.show(context.modelInfo()) },
     { name: 'model', description: 'Add, remove, or choose a model', usage: '<add|remove|default|task> ...', execute: async (args, context) => {
         const [action, ...rest] = args.split(/\s+/).filter(Boolean);
+        if (!action) return context.startModelMenu();
         if (action === 'add') return context.addModel(rest.join(' '));
         if (action === 'remove') return context.removeModel(rest.join(' '));
         if (action === 'default') return context.setDefaultModel(rest.join(' '));

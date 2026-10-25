@@ -22,6 +22,7 @@ const commandRegistry = new CommandRegistry(builtinCommands);
 const providerChoices = ['groq', 'openai', 'freellmapi', 'ollama'] as const;
 const authChoices = ['api-key', 'chatgpt'] as const;
 const providerActions = ['list', 'add', 'remove', 'change'] as const;
+const modelActions = ['list', 'add', 'remove', 'default', 'task'] as const;
 type ProviderWizard = { step: 'action' | 'provider' | 'auth' | 'config'; provider?: string; action?: 'add' | 'remove' | 'change'; field?: 'url' | 'apiKey'; url?: string };
 
 type AppProps = { permissionMode: PermissionMode; session: SessionStore; settings: SettingsStore; providerOverride?: string; modelOverride?: string };
@@ -47,6 +48,8 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
     const [selectedCommand, setSelectedCommand] = useState(0);
     const [providerWizard, setProviderWizard] = useState<ProviderWizard | null>(null);
     const [wizardChoice, setWizardChoice] = useState(0);
+    const [modelMenu, setModelMenu] = useState(false);
+    const [modelChoice, setModelChoice] = useState(0);
     const [, refreshSettings] = useState(0);
     const approvalResolver = useRef<((approved: boolean) => void) | null>(null);
     const createSessionAgent = (target: SessionStore) => createAgent({
@@ -96,6 +99,12 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
     const suggestions = commandRegistry.suggestions(input);
     useEffect(() => setSelectedCommand(0), [input]);
     useInput((_character, key) => {
+        if (modelMenu) {
+            if (key.escape) { setModelMenu(false); setModelChoice(0); setInput(''); return; }
+            if (key.upArrow) setModelChoice(current => (current - 1 + modelActions.length) % modelActions.length);
+            if (key.downArrow) setModelChoice(current => (current + 1) % modelActions.length);
+            return;
+        }
         if (providerWizard) {
             if (key.escape) {
                 setProviderWizard(null);
@@ -264,6 +273,13 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
             await addProviderFromWizard(providerWizard.provider ?? selected, providerWizard.step === 'auth' ? selected as 'api-key' | 'chatgpt' : 'api-key');
             return;
         }
+        if (modelMenu) {
+            const action = modelActions[modelChoice];
+            if (action === 'list') appendMessage('notice', settings.info());
+            else appendMessage('notice', `Use /model ${action} ... to continue.`);
+            setModelMenu(false); setModelChoice(0); setInput('');
+            return;
+        }
         if (!value.trim() || active.current) return;
         if (value.trim().startsWith('/')) {
             const selected = suggestions[Math.min(selectedCommand, Math.max(0, suggestions.length - 1))];
@@ -308,6 +324,7 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
                     removeModel: async args => { if (!args) throw new Error('Usage: /model remove <name>'); const name = args.trim(); const choice = settings.models().find(item => item.name === name); if (!choice) throw new Error(`Unknown model: ${name}`); await settings.removeModel(name, choice.scope); refreshSettings(value => value + 1); appendMessage('notice', `Removed ${name}.`); },
                     setDefaultModel: async args => { if (!args) throw new Error('Usage: /model default <name>'); await settings.setDefaultModel(args.trim(), 'project'); refreshSettings(value => value + 1); appendMessage('notice', `Default model set to ${args.trim()}.`); },
                     setTaskModel: async args => { const [task, name] = args.split(/\s+/).filter(Boolean); if (!task || !name) throw new Error('Usage: /model task <task> <name>'); await settings.setTaskModel(task, name, 'project'); refreshSettings(value => value + 1); appendMessage('notice', `${task} now uses ${name}.`); },
+                    startModelMenu: () => { setModelMenu(true); setModelChoice(0); setInput(''); },
                     quit: exit,
                 });
             } catch (error) {
@@ -372,11 +389,22 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
                     <Text dimColor>Use arrow keys and Enter. Escape cancels.</Text>
                 </Box>
             )}
+            {modelMenu && (
+                <Box flexDirection="column" marginTop={1} borderStyle="round" borderColor="magenta" paddingX={1}>
+                    <Text bold color="magenta">Model</Text>
+                    {modelActions.map((choice, index) => (
+                        <Text key={choice} color={index === modelChoice ? 'magenta' : undefined}>
+                            {index === modelChoice ? '❯ ' : '  '}{choice}
+                        </Text>
+                    ))}
+                    <Text dimColor>Use arrow keys and Enter. Escape cancels.</Text>
+                </Box>
+            )}
             {!approval && !busy && <CommandMenu commands={suggestions} selected={Math.min(selectedCommand, Math.max(0, suggestions.length - 1))} />}
             <Box marginTop={1} borderStyle="round" borderColor={approval ? 'cyan' : 'green'} paddingX={1}>
                 <Text color={approval ? 'cyan' : 'green'}>{approval ? '? ' : '❯ '}</Text>
                 <TextInput value={input} onChange={setInput} onSubmit={handleSubmit}
-                    focus={!busy || Boolean(approval)} placeholder={approval ? 'yes / no' : 'Ask something...'} />
+                    focus={!busy || Boolean(approval)} placeholder={approval ? 'yes / no' : providerWizard?.step === 'config' ? `Enter ${providerWizard.field === 'url' ? 'base URL' : 'API key'}...` : 'Ask something...'} />
             </Box>
             <Text dimColor>{approval ? 'Approve this call with yes · Deny with no' : 'Enter to submit · Ctrl+C to quit'}</Text>
         </Box>
