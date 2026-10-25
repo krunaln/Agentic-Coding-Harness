@@ -51,6 +51,13 @@ const waitForModelRefresh = async () => {
     }
     throw new Error('Timed out waiting for model discovery.');
 };
+const waitForFrame = async pattern => {
+    for (let attempt = 0; attempt < 80; attempt += 1) {
+        if (pattern.test(app.lastFrame())) return;
+        await sleep(100);
+    }
+    throw new Error(`Timed out waiting for frame: ${pattern}`);
+};
 const submit = async (value, label) => { await waitForIdle(); await sleep(350); app.stdin.write(value); await sleep(80); app.stdin.write('\r'); await waitForIdle(); await sleep(350); capture(label); };
 
 capture('startup');
@@ -70,9 +77,10 @@ await submit('Create tmp/manual-regression.txt with the text manual regression.'
 await submit('Read tmp/manual-regression.txt and tell me its contents.', 'read prompt');
 await submit('Delete tmp/manual-regression.txt.', 'delete prompt');
 await submit('/logout', 'logout menu');
+await waitForFrame(/│ Logout/);
+capture('logout menu rendered');
 app.stdin.write('\r');
-await waitForIdle();
-await sleep(350);
+await waitForFrame(/Logged out of/);
 capture('logout selected');
 
 await rm(root, { recursive: true, force: true });

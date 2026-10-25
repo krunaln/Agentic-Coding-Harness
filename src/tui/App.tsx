@@ -158,7 +158,6 @@ export const App = ({ permissionMode, session, settings, providerOverride, model
         if (loginMenu) {
             const choices = loginMenu === 'login' ? loginActions : settings.providers().filter(item => item.global).map(item => item.name);
             if (key.escape) { setLoginMenu(null); setLoginChoice(0); setInput(''); return; }
-            if (key.return) { void handleSubmit(''); return; }
             if (key.upArrow) setLoginChoice(current => (current - 1 + Math.max(choices.length, 1)) % Math.max(choices.length, 1));
             if (key.downArrow) setLoginChoice(current => (current + 1) % Math.max(choices.length, 1));
             return;
