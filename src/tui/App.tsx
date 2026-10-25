@@ -124,16 +124,12 @@ export const App = ({ permissionMode, session, settings, providerOverride, model
                     : 'configured';
         const line = (item: typeof items[number]) => `  ${item.name} · ${status(item)}${item.config.baseUrl ? ` · ${item.config.baseUrl}` : ''}`;
         const global = items.filter(item => item.global);
-        const project = items.filter(item => item.project);
         const available = items.filter(item => !item.global && !item.project && item.config.enabled !== false);
         return [
             'Providers',
             '',
             'Global connections (all projects):',
             ...(global.length ? global.map(line) : ['  None']),
-            '',
-            `Project connections (${workspace.root}):`,
-            ...(project.length ? project.map(line) : ['  None']),
             '',
             'Available providers:',
             ...(available.length ? available.map(line) : ['  None']),
