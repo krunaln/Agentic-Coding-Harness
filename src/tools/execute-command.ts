@@ -149,7 +149,7 @@ export function createExecuteCommandTool(workspace: Workspace): ToolDefinition<E
     return {
         name: 'execute_command',
         label: 'Execute command',
-        description: 'Execute a PowerShell or Bash command in a workspace directory. Captures stdout, stderr, exit code, timeout, and duration. Use for builds, tests, package commands, and other terminal operations. Default timeout is 120 seconds.',
+        description: 'Run a PowerShell or Bash command in the project. Use it for builds, tests, and package commands. It stops after two minutes by default.',
         permission: 'command-execution',
         schema,
         async execute(input, context) {

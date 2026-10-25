@@ -1,29 +1,21 @@
-# MyAI Product Backlog
+# MyAI To-Do List
 
-This file tracks work required to build and mature the reusable coding harness.
-It is a product backlog, not the runtime plan for an individual user request.
+This list is for building MyAI. It is not a plan for one user request.
 
 ## Next
 
-- [ ] HAR-001 Implement plan mode
-  - Goal: let the harness inspect a request, explore the workspace, propose an
-    implementation plan, and wait for the user to approve or revise it before
-    making changes.
-  - Acceptance criteria:
-    - The agent can enter and leave plan mode from the TUI.
-    - Read-only tools remain available while planning.
-    - Mutation and command tools are blocked until approval.
-    - The plan is visible in the TUI and can be revised before execution.
-    - The approved plan and execution outcome are persisted in the session.
+- [ ] HAR-001 Add plan mode
+  - MyAI should first make a plan, show it, and wait for approval.
+  - The user can change the plan before work starts.
+  - MyAI can read files while planning.
+  - MyAI cannot change files or run commands until approval.
+  - The plan and result are saved in the session.
 
 ## Backlog
 
-- [ ] HAR-002 Add project documentation
-- [ ] HAR-003 Implement remaining CLI commands
-- [ ] HAR-004 Write and expand automated tests
-- [ ] HAR-005 Run independent read-only tool calls concurrently, keep filesystem mutations
-  serialized through the workspace mutation queue, and wait for every tool call
-  in the model response before invoking the model again.
-- [ ] HAR-006 Implement a per-file diff view for every file mutation, rendered in the TUI
-  and exposed consistently in every supported interaction mode.
-- [ ] HAR-007 Publish to npm
+- [ ] HAR-002 Add project docs
+- [ ] HAR-003 Add the remaining commands
+- [ ] HAR-004 Add more tests
+- [ ] HAR-005 Run safe read-only tools at the same time. Keep file changes in order.
+- [ ] HAR-006 Show a file diff after every file change.
+- [ ] HAR-007 Publish MyAI to npm

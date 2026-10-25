@@ -105,7 +105,7 @@ export function createSearchCodeTool(workspace: Workspace): ToolDefinition<Searc
     return {
         name: 'search_code',
         label: 'Search code',
-        description: 'Search literal text recursively in workspace UTF-8 files. Returns workspace-relative paths, 1-based line numbers, and matching snippets. Case-insensitive by default. Skips generated folders, .env files, nested symlinks, binary files, and files over 1 MiB. Narrow the path or query if results are truncated.',
+        description: 'Find text in project files. It shows file names, line numbers, and nearby text. It ignores generated folders, .env files, and binary files.',
         schema,
         async execute(input, context) {
             const result = await searchWorkspaceCode(input, workspace.root, context.signal);

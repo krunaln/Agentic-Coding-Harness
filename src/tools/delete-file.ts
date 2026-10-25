@@ -18,7 +18,7 @@ export function createDeleteFileTool(
     return {
         name: 'delete_file',
         label: 'Delete file',
-        description: 'Permanently delete one existing regular file inside the workspace. This cannot delete directories. Read or inspect the target first when its contents matter.',
+        description: 'Delete one file in the project. It cannot delete folders. Read the file first when you need to check its contents.',
         permission: 'workspace-write',
         schema,
         execute(input, context) {

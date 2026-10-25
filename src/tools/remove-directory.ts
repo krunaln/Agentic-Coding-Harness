@@ -19,7 +19,7 @@ export function createRemoveDirectoryTool(
     return {
         name: 'remove_directory',
         label: 'Remove directory',
-        description: 'Permanently remove a workspace directory. It must be empty unless recursive is explicitly true. The workspace root itself can never be removed.',
+        description: 'Remove a folder in the project. It must be empty unless recursive is true. The project folder cannot be removed.',
         permission: 'workspace-write',
         schema,
         execute(input, context) {

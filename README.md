@@ -1,20 +1,17 @@
 # agent_study
 
-Node.js project using TypeScript and ES modules.
+MyAI is a small coding helper that runs in your terminal.
 
 ## Development
 
-Create a `.env` file in the harness repository using `.env.example` and set
-`GROQ_API_KEY` to your Groq API key. The CLI resolves this file relative to its
-installed code, so it continues working when `myai` is launched from another
-project. A `GROQ_API_KEY` already set in the shell takes precedence. The target
-workspace's `.env` is never loaded as harness configuration. Restart the CLI
-after changing the harness `.env`.
+Copy `.env.example` to `.env` in this repository and add your `GROQ_API_KEY`.
+MyAI uses this key even when you start it from another project. A key already
+set in your terminal takes priority. MyAI does not read the other project's
+`.env` file. Restart MyAI after changing the key.
 
-The app opens an Ink terminal interface. Type a prompt and press Enter to run
-the agent. Tool activity and answers appear in the transcript. Conversation
-history lasts until you exit. Input pauses during each turn; Ctrl+C exits.
-The weather tool currently returns mock weather.
+MyAI opens a terminal screen. Type a request and press Enter. You will see the
+work it does and its answer. Press Ctrl+C to exit. The weather tool is only a
+demo and returns made-up weather.
 
 ```sh
 npm install
@@ -50,8 +47,8 @@ Run `npm run typecheck` to check types without generating output.
 
 ## Permission modes
 
-The harness starts in `ask` mode. Every workspace mutation and shell command
-pauses before it runs and requires `yes` or `no` in the TUI:
+MyAI starts in `ask` mode. Before it changes a file or runs a command, it asks
+you to type `yes` or `no`:
 
 ```sh
 myai
@@ -59,7 +56,7 @@ myai
 myai --permission-mode ask
 ```
 
-Full-access mode runs mutation tools without approval prompts:
+Full-access mode skips these questions:
 
 ```sh
 myai --permission-mode full-access
@@ -67,15 +64,12 @@ myai --permission-mode full-access
 myai --full-access
 ```
 
-Read-only tools do not require approval in either mode. The runner enforces the
-policy from each tool's declared permission, so the same rule applies outside
-the TUI as additional interfaces are added.
+Read-only tools never need approval.
 
 ## Sessions
 
-Completed turns are saved automatically as append-only JSONL under
-`~/.myai/sessions/`, partitioned by workspace. Stored records use LangChain's
-message serialization, preserving assistant tool calls and matching tool results.
+Completed turns are saved under `~/.myai/sessions/`, separately for each
+project. This lets you continue work later with the same conversation.
 
 ```sh
 myai                         # start a new saved session
@@ -85,8 +79,8 @@ myai --resume <id-or-path>   # resume a specific session
 myai --no-session            # run without writing a session file
 ```
 
-Sessions are restricted to their original workspace. Only completed turns are
-committed, so an aborted or failed turn does not leave partial model history.
+You can only open a session in the project where it was created. Failed or
+cancelled turns are not saved.
 
 ## Slash commands
 
@@ -104,12 +98,10 @@ the highlighted command.
 
 ## Workspace tools
 
-The workspace root is the directory where you launch the app.
+The workspace is the folder where you start MyAI.
 
-All tools use a shared head-truncation policy. Text output is limited to 20,000
-UTF-8 bytes or 500 lines, with truncation metadata included in structured
-results. Collection-based tools keep complete entries rather than cutting JSON
-mid-item. Tool-specific input limits may stop collection earlier.
+Tool output is kept small so it does not fill the conversation. Long results
+show a note telling you that some output was left out.
 
 - `list_files`: lists files and directories, optionally recursively. Skips
   `.git`, `node_modules`, `dist`, and symlinks; defaults to 200 entries.

@@ -50,7 +50,7 @@ export function createListFilesTool(workspace: Workspace): ToolDefinition<ListFi
     return {
         name: 'list_files',
         label: 'List files',
-        description: 'List workspace files and directories. Paths are relative to the requested directory. Skips .git, node_modules, dist, and symlinks. Start with path ".".',
+        description: 'List files and folders in the project. Start with path ".". It skips .git, node_modules, dist, and links.',
         schema: listFilesSchema,
         async execute(input) {
             const result = await listWorkspaceFiles(input, workspace.root);

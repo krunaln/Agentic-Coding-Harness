@@ -103,6 +103,10 @@ while a turn is running and preserve the slash-command behavior in
 
 ## Change guidelines
 
+Use simple English in all user-facing text. This includes the README, help
+text, TUI messages, tool descriptions, comments, and backlog items. Prefer
+short sentences and common words. Explain technical terms when they are needed.
+
 - Preserve the active workspace boundary for every new tool.
 - Add or update a focused test for new tool behavior, permission behavior,
   session behavior, or repair behavior.

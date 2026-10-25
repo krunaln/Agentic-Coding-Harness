@@ -37,7 +37,7 @@ export function createEditFileTool(
     return {
         name: 'edit_file',
         label: 'Edit file',
-        description: 'Replace exact text in an existing UTF-8 workspace file. The old_text must match exactly once unless replace_all is true. Read the file first to obtain exact content.',
+        description: 'Change exact text in a project file. The old text must appear once unless replace_all is true. Read the file first.',
         permission: 'workspace-write',
         schema,
         execute(input, context) {

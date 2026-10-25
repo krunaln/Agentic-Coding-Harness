@@ -104,7 +104,7 @@ const App = ({ permissionMode, session }: AppProps) => {
         }
         if (event.type === 'tool-repairing') {
             if (!event.callId) {
-                appendMessage('notice', 'Tool arguments were rejected. Retrying once with the tool schema.');
+                appendMessage('notice', 'The tool request was not understood. Trying once more.');
                 return;
             }
             setEntries(current => current.map(entry => entry.kind === 'tool' && entry.callId === event.callId

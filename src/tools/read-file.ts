@@ -66,7 +66,7 @@ export function createReadFileTool(workspace: Workspace): ToolDefinition<ReadFil
     return {
         name: 'read_file',
         label: 'Read file',
-        description: 'Read a UTF-8 workspace file with line numbers. Defaults to the first 200 lines; at most 500 lines and 20,000 bytes per call. File limit: 1 MiB. Use start_line/end_line to continue reading.',
+        description: 'Read a text file with line numbers. It reads up to 200 lines at a time. Use start_line and end_line to read another part.',
         schema: readFileSchema,
         async execute(input) {
             const result = await readWorkspaceFile(input, workspace.root);
