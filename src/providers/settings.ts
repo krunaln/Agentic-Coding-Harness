@@ -146,6 +146,27 @@ export class SettingsStore {
         await this.save(scope);
     }
 
+    async discoverModels() {
+        const providers = Object.entries(this.global.providers ?? {}).filter(([, config]) => config.enabled !== false);
+        for (const [name, provider] of providers) {
+            if (!provider.baseUrl) continue;
+            try {
+                const headers: Record<string, string> = {};
+                const key = provider.apiKeyEnv ? process.env[provider.apiKeyEnv] : undefined;
+                if (key) headers.Authorization = `Bearer ${key}`;
+                const response = await fetch(`${provider.baseUrl.replace(/\/$/, '')}/models`, { headers });
+                if (!response.ok) continue;
+                const payload = await response.json() as { data?: Array<{ id?: string }> };
+                const discovered = (payload.data ?? []).map(item => item.id).filter((id): id is string => Boolean(id));
+                if (!discovered.length) continue;
+                const models = { ...(this.global.models ?? {}) };
+                for (const model of discovered) models[`${name}:${model}`] = { provider: name as ProviderType, model, scope: 'global' };
+                this.global.models = models;
+            } catch { /* A provider may be offline; keep the other catalogs. */ }
+        }
+        await this.save('global');
+    }
+
     info() {
         const core = this.resolveModel('core');
         return `Core model: ${core?.name ?? 'not set'}\nGlobal settings: ${this.globalPath}\nProject settings: ${this.projectPath}\nModels: ${this.models().map(model => `${model.name} (${model.scope})`).join(', ')}`;

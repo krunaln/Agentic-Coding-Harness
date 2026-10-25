@@ -54,6 +54,7 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
     const [loginMenu, setLoginMenu] = useState<'login' | 'logout' | null>(null);
     const [loginChoice, setLoginChoice] = useState(0);
     const [modelPicker, setModelPicker] = useState(false);
+    const [modelLoading, setModelLoading] = useState(false);
     const [, refreshSettings] = useState(0);
     const approvalResolver = useRef<((approved: boolean) => void) | null>(null);
     const createSessionAgent = (target: SessionStore) => createAgent({
@@ -392,7 +393,10 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
                     removeModel: async args => { if (!args) throw new Error('Usage: /model remove <name>'); const name = args.trim(); const choice = settings.models().find(item => item.name === name); if (!choice) throw new Error(`Unknown model: ${name}`); await settings.removeModel(name, choice.scope); refreshSettings(value => value + 1); appendMessage('notice', `Removed ${name}.`); },
                     setDefaultModel: async args => { if (!args) throw new Error('Usage: /model default <name>'); await settings.setDefaultModel(args.trim(), 'project'); refreshSettings(value => value + 1); appendMessage('notice', `Default model set to ${args.trim()}.`); },
                     setTaskModel: async args => { const [task, name] = args.split(/\s+/).filter(Boolean); if (!task || !name) throw new Error('Usage: /model task <task> <name>'); await settings.setTaskModel(task, name, 'project'); refreshSettings(value => value + 1); appendMessage('notice', `${task} now uses ${name}.`); },
-                    startModelMenu: () => { setModelMenu(false); setModelPicker(true); setModelChoice(0); setInput(''); },
+                    startModelMenu: () => {
+                        setModelMenu(false); setModelPicker(true); setModelChoice(0); setInput(''); setModelLoading(true);
+                        void settings.discoverModels().finally(() => { setModelLoading(false); refreshSettings(value => value + 1); });
+                    },
                     quit: exit,
                 });
             } catch (error) {
@@ -470,7 +474,9 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
             {modelPicker && (
                 <Box flexDirection="column" marginTop={1} borderStyle="round" borderColor="magenta" paddingX={1}>
                     <Text bold color="magenta">Choose model (current: {settings.resolveModel('core')?.name ?? 'none'})</Text>
-                    {settings.models().map((model, index) => <Text key={model.name} color={index === modelChoice ? 'magenta' : undefined}>{index === modelChoice ? '❯ ' : '  '}{model.name} [{model.config.provider}]</Text>)}
+                    {modelLoading && <Text dimColor>Loading models from connected logins...</Text>}
+                    {!modelLoading && !settings.models().length && <Text dimColor>No models found.</Text>}
+                    {!modelLoading && settings.models().map((model, index) => <Text key={model.name} color={index === modelChoice ? 'magenta' : undefined}>{index === modelChoice ? '❯ ' : '  '}{model.name} [{model.config.provider}]</Text>)}
                     <Text dimColor>Use arrow keys and Enter. Escape cancels.</Text>
                 </Box>
             )}
