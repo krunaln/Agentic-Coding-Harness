@@ -93,8 +93,14 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
 
     const addProviderFromWizard = async (name: string, auth: 'api-key' | 'chatgpt' = 'api-key', url?: string, apiKey?: string) => {
         const secretRef = apiKey ? `provider:${name}` : undefined;
-        if (secretRef) await saveProviderSecret(secretRef, apiKey!);
+        if (secretRef) {
+            await saveProviderSecret(secretRef, apiKey!);
+            process.env[secretRef] = apiKey;
+        }
         await settings.addProvider(name, providerConfig(name, auth, url, secretRef), 'global');
+        await settings.discoverModels();
+        const discovered = settings.models().find(model => model.config.provider === name);
+        if (discovered) await settings.setDefaultModel(discovered.name, 'global');
         refreshSettings(value => value + 1);
         appendMessage('notice', `Added ${name} provider globally.`);
         setProviderWizard(null);
