@@ -48,10 +48,28 @@ test('provider and model commands pass their arguments to the TUI', async () => 
         setDefaultModel: async value => calls.push(`model:default:${value}`),
         setTaskModel: async value => calls.push(`model:task:${value}`),
         startModelMenu: () => calls.push('model:menu'),
+        startLoginMenu: () => calls.push('login:menu'),
+        startLogoutMenu: () => calls.push('logout:menu'),
     };
     const registry = new CommandRegistry(builtinCommands);
     await registry.execute('/model', context);
+    await registry.execute('/login', context);
+    await registry.execute('/logout', context);
     assert.deepEqual(calls, [
-        'model:menu',
+        'model:menu', 'login:menu', 'logout:menu',
     ]);
+});
+
+test('help does not expose removed provider or model management commands', async () => {
+    let help = '';
+    const context = {
+        clear: () => {}, newSession: async () => {}, resumeSession: async () => {}, show: value => { help = value; },
+        sessionInfo: () => '', permissionInfo: () => '', modelInfo: () => '', quit: () => {},
+        startModelMenu: () => {}, startLoginMenu: () => {}, startLogoutMenu: () => {},
+    };
+    await new CommandRegistry(builtinCommands).execute('/help', context);
+    assert.match(help, /\/login/);
+    assert.match(help, /\/logout/);
+    assert.match(help, /\/model/);
+    assert.doesNotMatch(help, /\/provider|\/models|model add|model remove|model task/);
 });

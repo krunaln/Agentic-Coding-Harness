@@ -98,9 +98,6 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
             process.env[secretRef] = apiKey;
         }
         await settings.addProvider(name, providerConfig(name, auth, url, secretRef), 'global');
-        await settings.discoverModels();
-        const discovered = settings.models().find(model => model.config.provider === name);
-        if (discovered) await settings.setDefaultModel(discovered.name, 'global');
         refreshSettings(value => value + 1);
         appendMessage('notice', `Added ${name} provider globally.`);
         setProviderWizard(null);

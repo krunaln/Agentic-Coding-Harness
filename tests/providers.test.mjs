@@ -3,6 +3,7 @@ import test from 'node:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { createServer } from 'node:http';
 import { parseProviderOptions } from '../dist/providers/options.js';
 import { SettingsStore } from '../dist/providers/settings.js';
 import { createProviderModel } from '../dist/providers/factory.js';
@@ -43,4 +44,42 @@ test('ChatGPT auth gives a clear setup error until official standalone access ex
     assert.throws(() => createProviderModel({ name: 'openai:gpt', config: { provider: 'openai', model: 'gpt' }, scope: 'global' }, {
         type: 'openai', auth: 'chatgpt',
     }), /ChatGPT sign-in/);
+});
+
+test('model discovery reads connected OpenAI-compatible services without changing the default', async t => {
+    const server = createServer((request, response) => {
+        if (request.url === '/v1/models') {
+            response.setHeader('content-type', 'application/json');
+            response.end(JSON.stringify({ data: [{ id: 'qwen' }, { id: 'llama3' }] }));
+            return;
+        }
+        response.statusCode = 404;
+        response.end();
+    });
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    t.after(() => server.close());
+    const address = server.address();
+    const baseUrl = `http://127.0.0.1:${address.port}/v1`;
+    const root = await mkdtemp(path.join(tmpdir(), 'myai-discovery-'));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const settings = await SettingsStore.open(root, { globalPath: path.join(root, 'global.json') });
+    await settings.addProvider('ollama', { type: 'ollama', baseUrl }, 'global');
+    await settings.addProvider('freellmapi', { type: 'freellmapi', baseUrl }, 'global');
+    await settings.addModel('ollama:qwen', { provider: 'ollama', model: 'qwen' }, 'global');
+    await settings.setDefaultModel('ollama:qwen', 'global');
+    await settings.discoverModels();
+    assert.equal(settings.resolveModel('core').name, 'ollama:qwen');
+    assert.ok(settings.models().some(model => model.name === 'freellmapi:qwen'));
+    assert.ok(settings.models().some(model => model.name === 'freellmapi:llama3'));
+});
+
+test('disconnected providers do not expose their models', async t => {
+    const root = await mkdtemp(path.join(tmpdir(), 'myai-disconnect-'));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const settings = await SettingsStore.open(root, { globalPath: path.join(root, 'global.json') });
+    await settings.addProvider('ollama', { type: 'ollama', baseUrl: 'http://localhost:11434/v1' }, 'global');
+    await settings.addModel('ollama:qwen', { provider: 'ollama', model: 'qwen' }, 'global');
+    assert.equal(settings.models().length, 1);
+    await settings.disconnectProvider('ollama', 'global');
+    assert.equal(settings.models().length, 0);
 });
