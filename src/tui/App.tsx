@@ -129,7 +129,7 @@ export const App = ({ permissionMode, session, settings, providerOverride, model
         return [
             'Providers',
             '',
-            'Global connections (all projects):',
+            'Connected logins (available in all projects):',
             ...(global.length ? global.map(line) : ['  None']),
             '',
             'Available providers:',

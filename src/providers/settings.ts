@@ -191,7 +191,7 @@ export class SettingsStore {
 
     info() {
         const core = this.resolveModel('core');
-        return `Core model: ${core?.name ?? 'not set'}\nGlobal settings: ${this.globalPath}\nProject settings: ${this.projectPath}\nModels: ${this.models().map(model => `${model.name} (${model.scope})`).join(', ')}`;
+        return `Core model: ${core?.name ?? 'not set'}\nSettings: ${this.globalPath}\nModels: ${this.models().map(model => model.name).join(', ') || 'none'}`;
     }
 
     private async save(scope: ConfigScope) {
