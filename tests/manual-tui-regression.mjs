@@ -18,6 +18,9 @@ await settings.addProvider('freellmapi', {
     type: 'freellmapi', baseUrl: 'http://127.0.0.1:31415',
     apiKeyEnv: 'MYAI_MANUAL_FREELLMAPI_KEY',
 }, 'global');
+await settings.addProvider('ollama', {
+    type: 'ollama', baseUrl: 'http://localhost:11434/v1',
+}, 'global');
 await settings.discoverModels();
 const firstModel = settings.models().find(model => model.config.provider === 'freellmapi');
 if (!firstModel) throw new Error('FreeLLMAPI returned no usable models.');
