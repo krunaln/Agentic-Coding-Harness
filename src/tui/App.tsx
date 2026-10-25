@@ -96,6 +96,37 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
         setEntries(current => [...current, { id: nextEntryId.current++, kind: 'message', role, text }]);
     };
 
+    const providerListText = () => {
+        const items = settings.providers();
+        const line = (item: typeof items[number]) => `  ${item.name} · ${item.config.auth ?? 'local'}${item.config.baseUrl ? ` · ${item.config.baseUrl}` : ''}`;
+        const global = items.filter(item => item.global);
+        const project = items.filter(item => item.project);
+        const available = items.filter(item => !item.global && !item.project && item.config.enabled !== false);
+        return [
+            'Providers',
+            '',
+            'Global connections (all projects):',
+            ...(global.length ? global.map(line) : ['  None']),
+            '',
+            `Project connections (${workspace.root}):`,
+            ...(project.length ? project.map(line) : ['  None']),
+            '',
+            'Available providers:',
+            ...(available.length ? available.map(line) : ['  None']),
+        ].join('\n');
+    };
+
+    const modelListText = () => {
+        const core = settings.resolveModel('core')?.name ?? 'not configured';
+        const models = settings.models();
+        return [
+            'Models',
+            `Active core model: ${core}`,
+            '',
+            ...models.map(model => `  ${model.name} · provider ${model.config.provider} · ${model.scope}${model.name === core ? ' · active' : ''}`),
+        ].join('\n');
+    };
+
     const suggestions = commandRegistry.suggestions(input);
     useEffect(() => setSelectedCommand(0), [input]);
     useInput((_character, key) => {
@@ -223,7 +254,7 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
             if (!selected) return;
             if (providerWizard.step === 'action') {
                 if (selected === 'list') {
-                    appendMessage('notice', settings.providers().map(item => `${item.name} · ${item.config.auth ?? 'local/api key'}`).join('\n'));
+                    appendMessage('notice', providerListText());
                     setProviderWizard(null); setWizardChoice(0); setInput('');
                     return;
                 }
@@ -275,7 +306,7 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
         }
         if (modelMenu) {
             const action = modelActions[modelChoice];
-            if (action === 'list') appendMessage('notice', settings.info());
+            if (action === 'list') appendMessage('notice', modelListText());
             else appendMessage('notice', `Use /model ${action} ... to continue.`);
             setModelMenu(false); setModelChoice(0); setInput('');
             return;
@@ -304,11 +335,8 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
                     permissionInfo: () => `Permission mode: ${permissionMode}`,
                     startProviderMenu: () => { setProviderWizard({ step: 'action' }); setWizardChoice(0); setInput(''); },
                     startProviderAdd: () => { setProviderWizard({ step: 'provider', action: 'add' }); setWizardChoice(0); setInput(''); appendMessage('notice', 'Choose a provider to add.'); },
-                    providerInfo: () => settings.providers().map(item => {
-                        const scopes = [item.global ? 'global' : '', item.project ? 'project' : ''].filter(Boolean).join(', ');
-                        return `${item.name} · ${item.config.auth ?? 'local/api key'} · ${scopes || 'available, not connected'}`;
-                    }).join('\n'),
-                    modelInfo: () => settings.info(),
+                    providerInfo: providerListText,
+                    modelInfo: modelListText,
                     addProvider: async args => {
                         const [name, auth] = args.split(/\s+/).filter(Boolean);
                         if (!name || !['groq', 'openai', 'freellmapi', 'ollama'].includes(name)) throw new Error('Usage: /provider add <groq|openai|freellmapi|ollama>');
