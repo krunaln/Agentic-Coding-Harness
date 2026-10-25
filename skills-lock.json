@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "github-issue-creator": {
+      "source": "microsoft/skills",
+      "sourceType": "github",
+      "skillPath": ".github/skills/github-issue-creator/SKILL.md",
+      "computedHash": "4d4ef1ce3824ef0f9690a0f7d081f17552db082541063e42d1f557203608d517"
+    }
+  }
+}

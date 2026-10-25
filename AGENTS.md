@@ -4,6 +4,13 @@ This repository contains a TypeScript/Node.js terminal coding harness called
 `myai`. It provides an Ink TUI, a Groq-backed LangChain agent, workspace-scoped
 filesystem tools, shell execution, permissions, and session persistence.
 
+## Issue writing
+
+Use the `github-issue-creator` skill for new issues and bug reports. Keep issue
+files in `issues/` at the repository root. Use simple English, clear steps,
+expected behavior, actual behavior, impact, and useful context. Link each issue
+to its backlog item in `todo.md`.
+
 ## Current project state
 
 - The primary development branch is `main`.
