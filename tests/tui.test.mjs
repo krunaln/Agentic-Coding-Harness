@@ -46,3 +46,21 @@ test('Ink app opens the model picker from /model', async t => {
     assert.match(app.lastFrame(), /No models found|ollama:qwen/);
     app.unmount();
 });
+
+test('Ink app opens logout menu and disconnects a login', async t => {
+    const root = await mkdtemp(path.join(tmpdir(), 'myai-tui-logout-'));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const settings = await SettingsStore.open(root, { globalPath: path.join(root, 'global.json') });
+    await settings.addProvider('ollama', { type: 'ollama', baseUrl: 'http://127.0.0.1:1/v1' }, 'global');
+    const app = render(React.createElement(App, { permissionMode: 'ask', session: session(), settings }));
+    app.stdin.write('/logout');
+    await waitForFrame();
+    app.stdin.write('\r');
+    await waitForFrame();
+    assert.match(app.lastFrame(), /Logout/);
+    assert.match(app.lastFrame(), /ollama/);
+    app.stdin.write('\r');
+    await waitForFrame();
+    assert.match(app.lastFrame(), /Logged out of ollama/);
+    app.unmount();
+});
