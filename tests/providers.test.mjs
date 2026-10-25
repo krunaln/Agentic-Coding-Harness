@@ -91,6 +91,8 @@ test('disconnected providers do not expose their models', async t => {
     assert.equal(settings.models().length, 1);
     await settings.disconnectProvider('ollama', 'global');
     assert.equal(settings.models().length, 0);
+    await settings.discoverModels();
+    assert.deepEqual(settings.lastDiscoveryErrors, {});
 });
 
 test('does not choose the first model when no default is saved', async t => {

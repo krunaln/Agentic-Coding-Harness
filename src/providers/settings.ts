@@ -33,6 +33,7 @@ export class SettingsStore {
     readonly projectPath: string;
     global: MyAIConfig;
     project: MyAIConfig;
+    lastDiscoveryErrors: Record<string, string> = {};
 
     private constructor(projectRoot: string, global: MyAIConfig, project: MyAIConfig) {
         this.projectPath = path.join(projectRoot, '.myai', 'config.json');
@@ -147,6 +148,7 @@ export class SettingsStore {
     }
 
     async discoverModels() {
+        this.lastDiscoveryErrors = {};
         const providers = Object.entries(this.global.providers ?? {}).filter(([, config]) => config.enabled !== false);
         for (const [name, provider] of providers) {
             if (provider.auth === 'chatgpt') continue;
@@ -165,7 +167,10 @@ export class SettingsStore {
                 const apiBase = /\/v1$/i.test(baseUrl) ? baseUrl : `${baseUrl}/v1`;
                 const modelsUrl = `${apiBase}/models${name === 'freellmapi' ? '?available=true' : ''}`;
                 const response = await fetch(modelsUrl, { headers });
-                if (!response.ok) continue;
+                if (!response.ok) {
+                    this.lastDiscoveryErrors[name] = `HTTP ${response.status}`;
+                    continue;
+                }
                 const payload = await response.json() as { data?: Array<{ id?: string; execution_status?: string }> };
                 const discovered = (payload.data ?? [])
                     .filter(item => !item.execution_status || item.execution_status.toLowerCase() === 'ready' || item.id === 'auto')
@@ -176,9 +181,12 @@ export class SettingsStore {
                     .filter(([, model]) => model.provider !== name));
                 for (const model of discovered) models[`${name}:${model}`] = { provider: name as ProviderType, model, scope: 'global' };
                 this.global.models = models;
-            } catch { /* A provider may be offline; keep the other catalogs. */ }
+            } catch (error) {
+                this.lastDiscoveryErrors[name] = error instanceof Error ? error.message : String(error);
+            }
         }
         await this.save('global');
+        return this.lastDiscoveryErrors;
     }
 
     info() {

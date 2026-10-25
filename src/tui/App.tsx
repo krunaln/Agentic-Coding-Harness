@@ -57,6 +57,7 @@ export const App = ({ permissionMode, session, settings, providerOverride, model
     const [modelPicker, setModelPicker] = useState(false);
     const [modelScroll, setModelScroll] = useState(0);
     const [modelLoading, setModelLoading] = useState(false);
+    const [modelErrors, setModelErrors] = useState<Record<string, string>>({});
     const [, refreshSettings] = useState(0);
     const approvalResolver = useRef<((approved: boolean) => void) | null>(null);
     const createSessionAgent = (target: SessionStore) => createAgent({
@@ -425,7 +426,7 @@ export const App = ({ permissionMode, session, settings, providerOverride, model
                     setTaskModel: async args => { const [task, name] = args.split(/\s+/).filter(Boolean); if (!task || !name) throw new Error('Usage: /model task <task> <name>'); await settings.setTaskModel(task, name, 'project'); refreshSettings(value => value + 1); appendMessage('notice', `${task} now uses ${name}.`); },
                     startModelMenu: () => {
                         setModelMenu(false); setModelPicker(true); setModelChoice(0); setModelScroll(0); setInput(''); setModelLoading(true);
-                        void settings.discoverModels().finally(() => { setModelLoading(false); refreshSettings(value => value + 1); });
+                        void settings.discoverModels().then(errors => setModelErrors(errors)).finally(() => { setModelLoading(false); refreshSettings(value => value + 1); });
                     },
                     quit: exit,
                 });
@@ -505,8 +506,9 @@ export const App = ({ permissionMode, session, settings, providerOverride, model
                 <Box flexDirection="column" marginTop={1} borderStyle="round" borderColor="magenta" paddingX={1}>
                     <Text bold color="magenta">Choose model (current: {settings.resolveModel('core')?.name ?? 'none'})</Text>
                     {modelLoading && <Text dimColor>Loading models from connected logins...</Text>}
+                    {!modelLoading && Object.entries(modelErrors).map(([provider, error]) => <Text key={provider} color="yellow">{provider}: unavailable · {error}</Text>)}
                     {!modelLoading && !settings.models().length && <Text dimColor>No models found.</Text>}
-                    {!modelLoading && settings.models().slice(modelScroll, modelScroll + modelPageSize).map((model, offset) => { const index = modelScroll + offset; return <Text key={model.name} color={index === modelChoice ? 'magenta' : undefined}>{index === modelChoice ? '❯ ' : '  '}{model.name} [{model.config.provider}]</Text>; })}
+                    {!modelLoading && settings.models().slice(modelScroll, modelScroll + modelPageSize).map((model, offset) => { const index = modelScroll + offset; const label = model.config.provider === 'freellmapi' && ['auto', 'fusion'].includes(model.config.model) ? 'router' : model.config.provider; return <Text key={model.name} color={index === modelChoice ? 'magenta' : undefined}>{index === modelChoice ? '❯ ' : '  '}{model.name} [{label}]</Text>; })}
                     {!modelLoading && settings.models().length > modelPageSize && <Text dimColor>Showing {modelScroll + 1}-{Math.min(modelScroll + modelPageSize, settings.models().length)} of {settings.models().length} · Arrow keys scroll</Text>}
                     <Text dimColor>Use arrow keys and Enter. Escape cancels.</Text>
                 </Box>
