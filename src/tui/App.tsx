@@ -24,6 +24,7 @@ const authChoices = ['api-key', 'chatgpt'] as const;
 const providerActions = ['list', 'add', 'remove', 'change'] as const;
 const modelActions = ['list', 'add', 'remove', 'default', 'task'] as const;
 const loginActions = ['use subscription', 'use api key'] as const;
+const modelPageSize = 10;
 type ProviderWizard = { step: 'action' | 'provider' | 'auth' | 'config'; provider?: string; action?: 'add' | 'remove' | 'change'; field?: 'url' | 'apiKey'; url?: string };
 
 type AppProps = { permissionMode: PermissionMode; session: SessionStore; settings: SettingsStore; providerOverride?: string; modelOverride?: string };
@@ -54,6 +55,7 @@ export const App = ({ permissionMode, session, settings, providerOverride, model
     const [loginMenu, setLoginMenu] = useState<'login' | 'logout' | null>(null);
     const [loginChoice, setLoginChoice] = useState(0);
     const [modelPicker, setModelPicker] = useState(false);
+    const [modelScroll, setModelScroll] = useState(0);
     const [modelLoading, setModelLoading] = useState(false);
     const [, refreshSettings] = useState(0);
     const approvalResolver = useRef<((approved: boolean) => void) | null>(null);
@@ -153,8 +155,16 @@ export const App = ({ permissionMode, session, settings, providerOverride, model
         if (modelPicker) {
             const choices = settings.models();
             if (key.escape) { setModelPicker(false); setModelChoice(0); return; }
-            if (key.upArrow) setModelChoice(current => (current - 1 + Math.max(choices.length, 1)) % Math.max(choices.length, 1));
-            if (key.downArrow) setModelChoice(current => (current + 1) % Math.max(choices.length, 1));
+            if (key.upArrow) setModelChoice(current => {
+                const next = (current - 1 + Math.max(choices.length, 1)) % Math.max(choices.length, 1);
+                setModelScroll(scroll => next < scroll ? next : scroll);
+                return next;
+            });
+            if (key.downArrow) setModelChoice(current => {
+                const next = (current + 1) % Math.max(choices.length, 1);
+                setModelScroll(scroll => next >= scroll + modelPageSize ? Math.min(next - modelPageSize + 1, Math.max(0, choices.length - modelPageSize)) : scroll);
+                return next;
+            });
             return;
         }
         if (modelMenu) {
@@ -352,7 +362,7 @@ export const App = ({ permissionMode, session, settings, providerOverride, model
         if (modelPicker) {
             const selected = settings.models()[modelChoice];
             if (selected) { await settings.setDefaultModel(selected.name, 'global'); appendMessage('notice', `Current model: ${selected.name}`); refreshSettings(value => value + 1); }
-            setModelPicker(false); setModelChoice(0); setInput('');
+            setModelPicker(false); setModelChoice(0); setModelScroll(0); setInput('');
             return;
         }
         if (modelMenu) {
@@ -397,7 +407,7 @@ export const App = ({ permissionMode, session, settings, providerOverride, model
                     setDefaultModel: async args => { if (!args) throw new Error('Usage: /model default <name>'); await settings.setDefaultModel(args.trim(), 'project'); refreshSettings(value => value + 1); appendMessage('notice', `Default model set to ${args.trim()}.`); },
                     setTaskModel: async args => { const [task, name] = args.split(/\s+/).filter(Boolean); if (!task || !name) throw new Error('Usage: /model task <task> <name>'); await settings.setTaskModel(task, name, 'project'); refreshSettings(value => value + 1); appendMessage('notice', `${task} now uses ${name}.`); },
                     startModelMenu: () => {
-                        setModelMenu(false); setModelPicker(true); setModelChoice(0); setInput(''); setModelLoading(true);
+                        setModelMenu(false); setModelPicker(true); setModelChoice(0); setModelScroll(0); setInput(''); setModelLoading(true);
                         void settings.discoverModels().finally(() => { setModelLoading(false); refreshSettings(value => value + 1); });
                     },
                     quit: exit,
@@ -479,7 +489,8 @@ export const App = ({ permissionMode, session, settings, providerOverride, model
                     <Text bold color="magenta">Choose model (current: {settings.resolveModel('core')?.name ?? 'none'})</Text>
                     {modelLoading && <Text dimColor>Loading models from connected logins...</Text>}
                     {!modelLoading && !settings.models().length && <Text dimColor>No models found.</Text>}
-                    {!modelLoading && settings.models().map((model, index) => <Text key={model.name} color={index === modelChoice ? 'magenta' : undefined}>{index === modelChoice ? '❯ ' : '  '}{model.name} [{model.config.provider}]</Text>)}
+                    {!modelLoading && settings.models().slice(modelScroll, modelScroll + modelPageSize).map((model, offset) => { const index = modelScroll + offset; return <Text key={model.name} color={index === modelChoice ? 'magenta' : undefined}>{index === modelChoice ? '❯ ' : '  '}{model.name} [{model.config.provider}]</Text>; })}
+                    {!modelLoading && settings.models().length > modelPageSize && <Text dimColor>Showing {modelScroll + 1}-{Math.min(modelScroll + modelPageSize, settings.models().length)} of {settings.models().length} · Arrow keys scroll</Text>}
                     <Text dimColor>Use arrow keys and Enter. Escape cancels.</Text>
                 </Box>
             )}
