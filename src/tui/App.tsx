@@ -18,6 +18,9 @@ import { createProviderModel } from '../providers/factory.js';
 const version = process.env.npm_package_version ?? '1.0.0';
 const workspace = createWorkspace();
 const commandRegistry = new CommandRegistry(builtinCommands);
+const providerChoices = ['groq', 'openai', 'freellmapi', 'ollama'] as const;
+const authChoices = ['api-key', 'chatgpt'] as const;
+type ProviderWizard = { step: 'provider' | 'auth'; provider?: string };
 
 type AppProps = { permissionMode: PermissionMode; session: SessionStore; settings: SettingsStore; providerOverride?: string; modelOverride?: string };
 
@@ -40,6 +43,8 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
     const [approval, setApproval] = useState<ApprovalRequest | null>(null);
     const [activeSession, setActiveSession] = useState(session);
     const [selectedCommand, setSelectedCommand] = useState(0);
+    const [providerWizard, setProviderWizard] = useState<ProviderWizard | null>(null);
+    const [wizardChoice, setWizardChoice] = useState(0);
     const [, refreshSettings] = useState(0);
     const approvalResolver = useRef<((approved: boolean) => void) | null>(null);
     const createSessionAgent = (target: SessionStore) => createAgent({
@@ -65,6 +70,21 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
         approvalResolver.current?.(false);
     }, []);
 
+    const providerConfig = (name: string, auth: 'api-key' | 'chatgpt' = 'api-key') => name === 'groq'
+        ? { type: 'groq' as const, apiKeyEnv: 'GROQ_API_KEY' }
+        : name === 'openai'
+            ? { type: 'openai' as const, auth, apiKeyEnv: 'OPENAI_API_KEY' }
+            : { type: name as 'freellmapi' | 'ollama', baseUrl: name === 'ollama' ? 'http://localhost:11434/v1' : 'http://localhost:8000/v1', apiKeyEnv: name === 'freellmapi' ? 'FREELLMAPI_API_KEY' : undefined };
+
+    const addProviderFromWizard = async (name: string, auth: 'api-key' | 'chatgpt' = 'api-key') => {
+        await settings.addProvider(name, providerConfig(name, auth), 'global');
+        refreshSettings(value => value + 1);
+        appendMessage('notice', `Added ${name} provider globally.`);
+        setProviderWizard(null);
+        setWizardChoice(0);
+        setInput('');
+    };
+
     const appendMessage = (role: 'user' | 'assistant' | 'error' | 'notice', text: string) => {
         setEntries(current => [...current, { id: nextEntryId.current++, kind: 'message', role, text }]);
     };
@@ -72,6 +92,18 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
     const suggestions = commandRegistry.suggestions(input);
     useEffect(() => setSelectedCommand(0), [input]);
     useInput((_character, key) => {
+        if (providerWizard) {
+            if (key.escape) {
+                setProviderWizard(null);
+                setWizardChoice(0);
+                setInput('');
+                return;
+            }
+            const choices = providerWizard.step === 'provider' ? providerChoices : authChoices;
+            if (key.upArrow) setWizardChoice(current => (current - 1 + choices.length) % choices.length);
+            if (key.downArrow) setWizardChoice(current => (current + 1) % choices.length);
+            return;
+        }
         if (approval || busy || !suggestions.length) return;
         if (key.upArrow) setSelectedCommand(current => (current - 1 + suggestions.length) % suggestions.length);
         if (key.downArrow) setSelectedCommand(current => (current + 1) % suggestions.length);
@@ -161,6 +193,19 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
             resolve?.(approved);
             return;
         }
+        if (providerWizard) {
+            const choices = providerWizard.step === 'provider' ? providerChoices : authChoices;
+            const selected = choices[wizardChoice];
+            if (!selected) return;
+            if (providerWizard.step === 'provider' && selected === 'openai') {
+                setProviderWizard({ step: 'auth', provider: selected });
+                setWizardChoice(0);
+                setInput('');
+                return;
+            }
+            await addProviderFromWizard(providerWizard.provider ?? selected, providerWizard.step === 'auth' ? selected as 'api-key' | 'chatgpt' : 'api-key');
+            return;
+        }
         if (!value.trim() || active.current) return;
         if (value.trim().startsWith('/')) {
             const selected = suggestions[Math.min(selectedCommand, Math.max(0, suggestions.length - 1))];
@@ -183,15 +228,13 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
                         ? `Session: ${activeSession.header.id}\nCreated: ${activeSession.header.createdAt}\nFile: ${activeSession.filePath}\nMessages: ${activeSession.history.length}`
                         : `Session: ephemeral\nMessages: ${activeSession.history.length}`,
                     permissionInfo: () => `Permission mode: ${permissionMode}`,
+                    startProviderAdd: () => { setProviderWizard({ step: 'provider' }); setWizardChoice(0); setInput(''); appendMessage('notice', 'Choose a provider to add.'); },
                     providerInfo: () => settings.providers().map(item => `${item.name} · ${item.config.auth ?? 'local/api key'}${item.config.enabled === false ? ' · disabled' : ''}`).join('\n'),
                     modelInfo: () => settings.info(),
                     addProvider: async args => {
                         const [name, auth] = args.split(/\s+/).filter(Boolean);
                         if (!name || !['groq', 'openai', 'freellmapi', 'ollama'].includes(name)) throw new Error('Usage: /provider add <groq|openai|freellmapi|ollama>');
-                        const config = name === 'groq' ? { type: 'groq' as const, apiKeyEnv: 'GROQ_API_KEY' }
-                            : name === 'openai' ? { type: 'openai' as const, auth: auth === 'chatgpt' ? 'chatgpt' as const : 'api-key' as const, apiKeyEnv: 'OPENAI_API_KEY' }
-                                : { type: name as 'freellmapi' | 'ollama', baseUrl: name === 'ollama' ? 'http://localhost:11434/v1' : 'http://localhost:8000/v1', apiKeyEnv: name === 'freellmapi' ? 'FREELLMAPI_API_KEY' : undefined };
-                        await settings.addProvider(name, config, 'global'); refreshSettings(value => value + 1); appendMessage('notice', `Added ${name} provider globally.`);
+                        await addProviderFromWizard(name, auth === 'chatgpt' ? 'chatgpt' : 'api-key');
                     },
                     removeProvider: async args => { if (!args) throw new Error('Usage: /provider remove <name>'); await settings.removeProvider(args.trim(), 'global'); refreshSettings(value => value + 1); appendMessage('notice', `Removed ${args.trim()} provider.`); },
                     addModel: async args => {
@@ -254,6 +297,17 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
                             ? 'This call can execute a shell command. Enter yes or no.'
                             : 'This call can modify the workspace. Enter yes or no.'}
                     </Text>
+                </Box>
+            )}
+            {providerWizard && (
+                <Box flexDirection="column" marginTop={1} borderStyle="round" borderColor="cyan" paddingX={1}>
+                    <Text bold color="cyan">{providerWizard.step === 'provider' ? 'Add provider' : 'OpenAI connection method'}</Text>
+                    {(providerWizard.step === 'provider' ? providerChoices : authChoices).map((choice, index) => (
+                        <Text key={choice} color={index === wizardChoice ? 'cyan' : undefined}>
+                            {index === wizardChoice ? '❯ ' : '  '}{choice}
+                        </Text>
+                    ))}
+                    <Text dimColor>Use arrow keys and Enter. Escape cancels.</Text>
                 </Box>
             )}
             {!approval && !busy && <CommandMenu commands={suggestions} selected={Math.min(selectedCommand, Math.max(0, suggestions.length - 1))} />}

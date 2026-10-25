@@ -20,7 +20,7 @@ export const builtinCommands: SlashCommand[] = [
     { name: 'providers', description: 'Show available providers', execute: (_args, context) => context.show(context.providerInfo()) },
     { name: 'provider', description: 'Add or remove a provider', usage: '<add|remove> <name>', execute: async (args, context) => {
         const [action, ...rest] = args.split(/\s+/).filter(Boolean);
-        if (action === 'add') return context.addProvider(rest.join(' '));
+        if (action === 'add') return rest.length ? context.addProvider(rest.join(' ')) : context.startProviderAdd();
         if (action === 'remove') return context.removeProvider(rest.join(' '));
         throw new Error('Usage: /provider <add|remove> <name>');
     } },
