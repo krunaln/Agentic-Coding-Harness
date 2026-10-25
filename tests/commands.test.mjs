@@ -55,12 +55,13 @@ test('provider and model commands pass their arguments to the TUI', async () => 
     await registry.execute('/provider add ollama', context);
     await registry.execute('/provider add', context);
     await registry.execute('/provider list', context);
+    await registry.execute('/provider', context);
     await registry.execute('/provider remove ollama', context);
     await registry.execute('/model add --global ollama:qwen', context);
     await registry.execute('/model default ollama:qwen', context);
     await registry.execute('/model task review ollama:qwen', context);
     assert.deepEqual(calls, [
-        'provider:add:ollama', 'provider:start', 'show:', 'provider:remove:ollama',
+        'provider:add:ollama', 'provider:start', 'show:', 'show:', 'provider:remove:ollama',
         'model:add:--global ollama:qwen', 'model:default:ollama:qwen',
         'model:task:review ollama:qwen',
     ]);
