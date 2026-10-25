@@ -67,6 +67,7 @@ test('model discovery reads connected OpenAI-compatible services without changin
     const settings = await SettingsStore.open(root, { globalPath: path.join(root, 'global.json') });
     await settings.addProvider('ollama', { type: 'ollama', baseUrl }, 'global');
     await settings.addProvider('freellmapi', { type: 'freellmapi', baseUrl }, 'global');
+    await settings.addProvider('groq', { type: 'groq', apiKeyEnv: 'MYAI_TEST_MISSING_KEY' }, 'global');
     await settings.addModel('ollama:qwen', { provider: 'ollama', model: 'qwen' }, 'global');
     await settings.addModel('freellmapi:old', { provider: 'freellmapi', model: 'old' }, 'global');
     await settings.setDefaultModel('ollama:qwen', 'global');

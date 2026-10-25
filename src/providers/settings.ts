@@ -149,6 +149,8 @@ export class SettingsStore {
     async discoverModels() {
         const providers = Object.entries(this.global.providers ?? {}).filter(([, config]) => config.enabled !== false);
         for (const [name, provider] of providers) {
+            if (provider.auth === 'chatgpt') continue;
+            if (provider.apiKeyEnv && !process.env[provider.apiKeyEnv]?.trim()) continue;
             const endpoint = provider.baseUrl
                 ?? (name === 'groq' ? 'https://api.groq.com/openai/v1' : name === 'openai' ? 'https://api.openai.com/v1' : undefined);
             if (!endpoint) continue;
