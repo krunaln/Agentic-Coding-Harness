@@ -8,7 +8,7 @@ const defaultModel = 'groq:openai/gpt-oss-20b';
 const defaultProviders: Record<string, ProviderConfig> = {
     groq: { type: 'groq', apiKeyEnv: 'GROQ_API_KEY' },
     openai: { type: 'openai', auth: 'api-key', apiKeyEnv: 'OPENAI_API_KEY' },
-    freellmapi: { type: 'freellmapi', baseUrl: 'http://localhost:8000/v1', apiKeyEnv: 'FREELLMAPI_API_KEY' },
+    freellmapi: { type: 'freellmapi', baseUrl: 'http://localhost:3001/v1', apiKeyEnv: 'FREELLMAPI_API_KEY' },
     ollama: { type: 'ollama', baseUrl: 'http://localhost:11434/v1' },
 };
 
@@ -154,10 +154,14 @@ export class SettingsStore {
                 const headers: Record<string, string> = {};
                 const key = provider.apiKeyEnv ? process.env[provider.apiKeyEnv] : undefined;
                 if (key) headers.Authorization = `Bearer ${key}`;
-                const response = await fetch(`${provider.baseUrl.replace(/\/$/, '')}/models`, { headers });
+                const modelsUrl = `${provider.baseUrl.replace(/\/$/, '')}/models${name === 'freellmapi' ? '?available=true' : ''}`;
+                const response = await fetch(modelsUrl, { headers });
                 if (!response.ok) continue;
-                const payload = await response.json() as { data?: Array<{ id?: string }> };
-                const discovered = (payload.data ?? []).map(item => item.id).filter((id): id is string => Boolean(id));
+                const payload = await response.json() as { data?: Array<{ id?: string; execution_status?: string }> };
+                const discovered = (payload.data ?? [])
+                    .filter(item => !item.execution_status || item.execution_status.toLowerCase() === 'ready' || item.id === 'auto')
+                    .map(item => item.id)
+                    .filter((id): id is string => Boolean(id));
                 if (!discovered.length) continue;
                 const models = { ...(this.global.models ?? {}) };
                 for (const model of discovered) models[`${name}:${model}`] = { provider: name as ProviderType, model, scope: 'global' };

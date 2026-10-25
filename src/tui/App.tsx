@@ -89,7 +89,7 @@ export const App = ({ permissionMode, session, settings, providerOverride, model
         ? { type: 'groq' as const, apiKeyEnv: secretRef ?? 'GROQ_API_KEY', secretRef }
         : name === 'openai'
             ? { type: 'openai' as const, auth, apiKeyEnv: secretRef ?? 'OPENAI_API_KEY', secretRef }
-            : { type: name as 'freellmapi' | 'ollama', baseUrl: url || (name === 'ollama' ? 'http://localhost:11434/v1' : 'http://localhost:8000/v1'), apiKeyEnv: name === 'freellmapi' ? (secretRef || 'FREELLMAPI_API_KEY') : undefined, secretRef };
+            : { type: name as 'freellmapi' | 'ollama', baseUrl: url || (name === 'ollama' ? 'http://localhost:11434/v1' : 'http://localhost:3001/v1'), apiKeyEnv: name === 'freellmapi' ? (secretRef || 'FREELLMAPI_API_KEY') : undefined, secretRef };
 
     const addProviderFromWizard = async (name: string, auth: 'api-key' | 'chatgpt' = 'api-key', url?: string, apiKey?: string) => {
         const secretRef = apiKey ? `provider:${name}` : undefined;

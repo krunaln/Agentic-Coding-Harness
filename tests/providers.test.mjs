@@ -48,9 +48,9 @@ test('ChatGPT auth gives a clear setup error until official standalone access ex
 
 test('model discovery reads connected OpenAI-compatible services without changing the default', async t => {
     const server = createServer((request, response) => {
-        if (request.url === '/v1/models') {
+        if (request.url === '/v1/models?available=true' || request.url === '/v1/models') {
             response.setHeader('content-type', 'application/json');
-            response.end(JSON.stringify({ data: [{ id: 'qwen' }, { id: 'llama3' }] }));
+            response.end(JSON.stringify({ data: [{ id: 'qwen', execution_status: 'ready' }, { id: 'llama3', execution_status: 'exhausted' }] }));
             return;
         }
         response.statusCode = 404;
@@ -70,7 +70,7 @@ test('model discovery reads connected OpenAI-compatible services without changin
     await settings.discoverModels();
     assert.equal(settings.resolveModel('core').name, 'ollama:qwen');
     assert.ok(settings.models().some(model => model.name === 'freellmapi:qwen'));
-    assert.ok(settings.models().some(model => model.name === 'freellmapi:llama3'));
+    assert.equal(settings.models().some(model => model.name === 'freellmapi:llama3'), false);
 });
 
 test('disconnected providers do not expose their models', async t => {
