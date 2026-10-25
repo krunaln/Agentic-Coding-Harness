@@ -149,12 +149,16 @@ export class SettingsStore {
     async discoverModels() {
         const providers = Object.entries(this.global.providers ?? {}).filter(([, config]) => config.enabled !== false);
         for (const [name, provider] of providers) {
-            if (!provider.baseUrl) continue;
+            const endpoint = provider.baseUrl
+                ?? (name === 'groq' ? 'https://api.groq.com/openai/v1' : name === 'openai' ? 'https://api.openai.com/v1' : undefined);
+            if (!endpoint) continue;
+            this.global.models = Object.fromEntries(Object.entries(this.global.models ?? {})
+                .filter(([, model]) => model.provider !== name));
             try {
                 const headers: Record<string, string> = {};
                 const key = provider.apiKeyEnv ? process.env[provider.apiKeyEnv] : undefined;
                 if (key) headers.Authorization = `Bearer ${key}`;
-                const baseUrl = provider.baseUrl.replace(/\/$/, '');
+                const baseUrl = endpoint.replace(/\/$/, '');
                 const apiBase = /\/v1$/i.test(baseUrl) ? baseUrl : `${baseUrl}/v1`;
                 const modelsUrl = `${apiBase}/models${name === 'freellmapi' ? '?available=true' : ''}`;
                 const response = await fetch(modelsUrl, { headers });
