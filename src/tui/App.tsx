@@ -113,7 +113,9 @@ export const App = ({ permissionMode, session, settings, providerOverride, model
 
     const providerListText = () => {
         const items = settings.providers();
-        const status = (item: typeof items[number]) => item.config.enabled === false
+        const status = (item: typeof items[number]) => !item.global && !item.project
+            ? 'available'
+            : item.config.enabled === false
             ? 'disabled'
             : item.config.auth === 'chatgpt'
                 ? 'subscription sign-in pending'
