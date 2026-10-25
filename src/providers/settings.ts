@@ -91,7 +91,7 @@ export class SettingsStore {
         if (overrideProvider) return this.models().find(model => model.config.provider === overrideProvider);
         const taskModel = this.project.taskModels?.[task] ?? this.global.taskModels?.[task];
         const name = taskModel ?? this.project.defaultModel ?? this.global.defaultModel ?? defaultModel;
-        return this.models().find(model => model.name === name) ?? this.models()[0];
+        return this.models().find(model => model.name === name);
     }
 
     async addProvider(name: string, config: ProviderConfig, scope: ConfigScope) {
