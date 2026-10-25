@@ -29,3 +29,5 @@ Use ink-testing-library to test the visible MyAI screens and keyboard actions.
 The login screen now performs a short provider connection check when it opens and reports endpoint failures as `not connected`.
 
 The latest run also exposed a race in the manual Ink driver: approval text can be appended to the next prompt when the driver submits `yes` while the approval box is changing. The app should keep input locked until the approval result is cleared, and the manual driver should wait for the approval frame to disappear before sending the next prompt.
+
+After adding that wait, the run reached the `/logout` step but did not render the logout menu before the timeout. This needs a direct Ink test for slash-command menu opening; the current live script should remain separate until that flow is fixed.
