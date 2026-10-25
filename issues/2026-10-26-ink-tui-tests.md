@@ -25,3 +25,5 @@ Use ink-testing-library to test the visible MyAI screens and keyboard actions.
 - Verify a saved login against its provider before calling it connected. A saved Ollama entry can still say `configured` while the service is offline.
 - Keep the model picker loading and error states visible while discovery is running.
 - Add a focused logout test that selects a login and checks that its models disappear.
+
+The login screen now performs a short provider connection check when it opens and reports endpoint failures as `not connected`.
