@@ -12,12 +12,14 @@ import { SessionStore as SessionStoreClass } from '../sessions/store.js';
 import { builtinCommands } from '../commands/builtins.js';
 import { CommandRegistry } from '../commands/registry.js';
 import { CommandMenu } from './components/CommandMenu.js';
+import { SettingsStore } from '../providers/settings.js';
+import { createProviderModel } from '../providers/factory.js';
 
 const version = process.env.npm_package_version ?? '1.0.0';
 const workspace = createWorkspace();
 const commandRegistry = new CommandRegistry(builtinCommands);
 
-type AppProps = { permissionMode: PermissionMode; session: SessionStore };
+type AppProps = { permissionMode: PermissionMode; session: SessionStore; settings: SettingsStore; providerOverride?: string; modelOverride?: string };
 
 function restoredTranscript(history: BaseMessage[]): TranscriptEntry[] {
     const entries: TranscriptEntry[] = [];
@@ -30,7 +32,7 @@ function restoredTranscript(history: BaseMessage[]): TranscriptEntry[] {
     return entries;
 }
 
-const App = ({ permissionMode, session }: AppProps) => {
+const App = ({ permissionMode, session, settings, providerOverride, modelOverride }: AppProps) => {
     const { exit } = useApp();
     const [input, setInput] = useState('');
     const [entries, setEntries] = useState<TranscriptEntry[]>(() => restoredTranscript(session.history));
@@ -38,9 +40,17 @@ const App = ({ permissionMode, session }: AppProps) => {
     const [approval, setApproval] = useState<ApprovalRequest | null>(null);
     const [activeSession, setActiveSession] = useState(session);
     const [selectedCommand, setSelectedCommand] = useState(0);
+    const [, refreshSettings] = useState(0);
     const approvalResolver = useRef<((approved: boolean) => void) | null>(null);
     const createSessionAgent = (target: SessionStore) => createAgent({
         workspace, permissionMode, initialHistory: target.history,
+        modelFactory: tools => {
+            const choice = settings.resolveModel('core', modelOverride, providerOverride);
+            if (!choice) throw new Error('No model is configured. Add a model with /model add.');
+            const provider = settings.provider(choice.config.provider);
+            if (!provider) throw new Error(`Provider ${choice.config.provider} is not configured.`);
+            return createProviderModel(choice, provider).bindTools(tools);
+        },
         onHistoryCommitted: messages => target.appendTurn(messages),
         requestApproval: request => new Promise<boolean>(resolve => {
             approvalResolver.current = resolve;
@@ -173,6 +183,26 @@ const App = ({ permissionMode, session }: AppProps) => {
                         ? `Session: ${activeSession.header.id}\nCreated: ${activeSession.header.createdAt}\nFile: ${activeSession.filePath}\nMessages: ${activeSession.history.length}`
                         : `Session: ephemeral\nMessages: ${activeSession.history.length}`,
                     permissionInfo: () => `Permission mode: ${permissionMode}`,
+                    providerInfo: () => settings.providers().map(item => `${item.name} · ${item.config.auth ?? 'local/api key'}${item.config.enabled === false ? ' · disabled' : ''}`).join('\n'),
+                    modelInfo: () => settings.info(),
+                    addProvider: async args => {
+                        const [name, auth] = args.split(/\s+/).filter(Boolean);
+                        if (!name || !['groq', 'openai', 'freellmapi', 'ollama'].includes(name)) throw new Error('Usage: /provider add <groq|openai|freellmapi|ollama>');
+                        const config = name === 'groq' ? { type: 'groq' as const, apiKeyEnv: 'GROQ_API_KEY' }
+                            : name === 'openai' ? { type: 'openai' as const, auth: auth === 'chatgpt' ? 'chatgpt' as const : 'api-key' as const, apiKeyEnv: 'OPENAI_API_KEY' }
+                                : { type: name as 'freellmapi' | 'ollama', baseUrl: name === 'ollama' ? 'http://localhost:11434/v1' : 'http://localhost:8000/v1', apiKeyEnv: name === 'freellmapi' ? 'FREELLMAPI_API_KEY' : undefined };
+                        await settings.addProvider(name, config, 'global'); refreshSettings(value => value + 1); appendMessage('notice', `Added ${name} provider globally.`);
+                    },
+                    removeProvider: async args => { if (!args) throw new Error('Usage: /provider remove <name>'); await settings.removeProvider(args.trim(), 'global'); refreshSettings(value => value + 1); appendMessage('notice', `Removed ${args.trim()} provider.`); },
+                    addModel: async args => {
+                        const tokens = args.split(/\s+/).filter(Boolean); const scope = tokens.includes('--global') ? 'global' as const : 'project' as const; const name = tokens.find(token => !token.startsWith('--'));
+                        if (!name || !name.includes(':')) throw new Error('Usage: /model add [--global] <provider:model>');
+                        const [provider, ...modelParts] = name.split(':'); const model = modelParts.join(':');
+                        await settings.addModel(name, { provider: provider as any, model }, scope); refreshSettings(value => value + 1); appendMessage('notice', `Added ${name} (${scope}).`);
+                    },
+                    removeModel: async args => { if (!args) throw new Error('Usage: /model remove <name>'); const name = args.trim(); const choice = settings.models().find(item => item.name === name); if (!choice) throw new Error(`Unknown model: ${name}`); await settings.removeModel(name, choice.scope); refreshSettings(value => value + 1); appendMessage('notice', `Removed ${name}.`); },
+                    setDefaultModel: async args => { if (!args) throw new Error('Usage: /model default <name>'); await settings.setDefaultModel(args.trim(), 'project'); refreshSettings(value => value + 1); appendMessage('notice', `Default model set to ${args.trim()}.`); },
+                    setTaskModel: async args => { const [task, name] = args.split(/\s+/).filter(Boolean); if (!task || !name) throw new Error('Usage: /model task <task> <name>'); await settings.setTaskModel(task, name, 'project'); refreshSettings(value => value + 1); appendMessage('notice', `${task} now uses ${name}.`); },
                     quit: exit,
                 });
             } catch (error) {
@@ -203,6 +233,7 @@ const App = ({ permissionMode, session }: AppProps) => {
             <Text bold color="#005cc5">MyAI Code Harness {version}</Text>
             <Text dimColor>Workspace: {workspace.root}</Text>
             <Text dimColor>Permissions: {permissionMode}</Text>
+            <Text dimColor>Model: {settings.resolveModel('core', modelOverride, providerOverride)?.name ?? 'not configured'}</Text>
             <Text dimColor>Session: {activeSession.persistent ? activeSession.header.id : 'ephemeral'}</Text>
             {entries.map(entry => entry.kind === 'tool'
                 ? <ToolCall key={entry.id} tool={entry} />
@@ -237,5 +268,5 @@ const App = ({ permissionMode, session }: AppProps) => {
 };
 
 export function startApp(options: AppProps) {
-    return render(<App permissionMode={options.permissionMode} session={options.session} />);
+    return render(<App permissionMode={options.permissionMode} session={options.session} settings={options.settings} providerOverride={options.providerOverride} modelOverride={options.modelOverride} />);
 }

@@ -66,6 +66,12 @@ application lives in `src/tui/`. `src/agent/runner.ts` owns the model turn loop,
 tool validation, permission checks, tool execution, repair behavior, event
 emission, and history commits.
 
+Provider settings live in `src/providers/`. Global settings are stored under
+`~/.myai/config.json`; project settings are stored under `<project>/.myai/`.
+Project settings override global settings. API keys must stay in environment
+variables. Provider and model changes should be available through simple TUI
+slash commands.
+
 `createToolDefinitions(workspace)` in `src/tools/index.ts` creates a fresh,
 workspace-bound registry for every agent. Do not introduce a process-global
 `agentTools` array. A tool is a `ToolDefinition` with a name, label, model

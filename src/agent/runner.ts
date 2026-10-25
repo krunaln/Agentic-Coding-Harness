@@ -1,6 +1,7 @@
-import { ChatGroq } from '@langchain/groq';
 import { AIMessage, HumanMessage, SystemMessage, ToolMessage, type BaseMessage } from '@langchain/core/messages';
+import type { StructuredToolInterface } from '@langchain/core/tools';
 import { ZodError } from 'zod';
+import { ChatGroq } from '@langchain/groq';
 import { getGroqApiKey } from '../config/env.js';
 import { createModelTools, createToolDefinitions } from '../tools/index.js';
 import type { AnyToolDefinition } from '../tools/types.js';
@@ -24,6 +25,7 @@ type Model = {
 export type CreateAgentOptions = {
     workspace?: Workspace;
     model?: Model;
+    modelFactory?: (tools: StructuredToolInterface[]) => Model;
     failureModel?: Model;
     tools?: AnyToolDefinition[];
     permissionMode?: PermissionMode;
@@ -92,7 +94,7 @@ export function createAgent(options: CreateAgentOptions = {}) {
                         model: 'openai/gpt-oss-20b',
                         temperature: 0,
                     });
-                    model = baseModel.bindTools(modelTools);
+                    model = options.modelFactory?.(modelTools) ?? baseModel.bindTools(modelTools);
                     failureModel ??= baseModel;
                 }
                 const activeModel = model;

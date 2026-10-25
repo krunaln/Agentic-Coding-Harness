@@ -36,3 +36,29 @@ test('registry executes commands and validates unknown commands and required arg
     await assert.rejects(registry.execute('/resume', context), /Usage/);
     await assert.rejects(registry.execute('/missing', context), /Unknown command/);
 });
+
+test('provider and model commands pass their arguments to the TUI', async () => {
+    const calls = [];
+    const context = {
+        clear: () => {}, newSession: async () => {}, resumeSession: async () => {},
+        show: () => {}, sessionInfo: () => '', permissionInfo: () => '', quit: () => {},
+        providerInfo: () => '', modelInfo: () => '',
+        addProvider: async value => calls.push(`provider:add:${value}`),
+        removeProvider: async value => calls.push(`provider:remove:${value}`),
+        addModel: async value => calls.push(`model:add:${value}`),
+        removeModel: async value => calls.push(`model:remove:${value}`),
+        setDefaultModel: async value => calls.push(`model:default:${value}`),
+        setTaskModel: async value => calls.push(`model:task:${value}`),
+    };
+    const registry = new CommandRegistry(builtinCommands);
+    await registry.execute('/provider add ollama', context);
+    await registry.execute('/provider remove ollama', context);
+    await registry.execute('/model add --global ollama:qwen', context);
+    await registry.execute('/model default ollama:qwen', context);
+    await registry.execute('/model task review ollama:qwen', context);
+    assert.deepEqual(calls, [
+        'provider:add:ollama', 'provider:remove:ollama',
+        'model:add:--global ollama:qwen', 'model:default:ollama:qwen',
+        'model:task:review ollama:qwen',
+    ]);
+});

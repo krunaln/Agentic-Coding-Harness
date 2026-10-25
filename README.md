@@ -79,6 +79,35 @@ myai --resume <id-or-path>   # resume a specific session
 myai --no-session            # run without writing a session file
 ```
 
+## Providers and models
+
+MyAI can use Groq, OpenAI, FreeLLMAPI, and Ollama. Add providers and models
+from the TUI:
+
+```text
+/providers
+/provider add ollama
+/models
+/model add --global ollama:qwen
+/model default ollama:qwen
+/model task review openai:gpt-4.1
+```
+
+Global models are available in every project. A model added without `--global`
+belongs to the current project. Project settings win over global settings.
+Tasks use the main model unless a task model is set.
+
+Use `--provider` or `--model` for a one-time choice:
+
+```text
+myai --provider ollama
+myai --model ollama:qwen
+```
+
+API keys stay in environment variables. Ollama and FreeLLMAPI use local
+OpenAI-compatible addresses. OpenAI API-key mode is supported. ChatGPT sign-in
+is recorded as a provider option, but needs an official standalone sign-in flow.
+
 You can only open a session in the project where it was created. Failed or
 cancelled turns are not saved.
 
