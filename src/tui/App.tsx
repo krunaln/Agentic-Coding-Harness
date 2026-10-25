@@ -127,7 +127,7 @@ export const App = ({ permissionMode, session, settings, providerOverride, model
         const global = items.filter(item => item.global);
         const available = items.filter(item => !item.global && !item.project && item.config.enabled !== false);
         return [
-            'Providers',
+            'Connected logins',
             '',
             'Connected logins (available in all projects):',
             ...(global.length ? global.map(line) : ['  None']),
@@ -495,7 +495,7 @@ export const App = ({ permissionMode, session, settings, providerOverride, model
             {loginMenu && (
                 <Box flexDirection="column" marginTop={1} borderStyle="round" borderColor="cyan" paddingX={1}>
                     <Text bold color="cyan">{loginMenu === 'login' ? 'Login' : 'Logout'}</Text>
-                    {loginMenu === 'login' && <Text dimColor>{providerListText().replace('Providers', 'Connected logins')}</Text>}
+                    {loginMenu === 'login' && <Text dimColor>{providerListText()}</Text>}
                     {(loginMenu === 'login' ? loginActions : settings.providers().filter(item => item.global && item.config.enabled !== false && (!((item.config.apiKeyEnv ?? (item.config.type === 'freellmapi' ? `provider:${item.name}` : undefined))) || Boolean(process.env[item.config.apiKeyEnv ?? `provider:${item.name}`]?.trim())) && item.config.auth !== 'chatgpt').map(item => item.name)).map((choice, index) => (
                         <Text key={choice} color={index === loginChoice ? 'cyan' : undefined}>{index === loginChoice ? '❯ ' : '  '}{choice}</Text>
                     ))}
