@@ -59,6 +59,7 @@ export const App = ({ permissionMode, session, settings, providerOverride, model
     const [modelLoading, setModelLoading] = useState(false);
     const [modelErrors, setModelErrors] = useState<Record<string, string>>({});
     const [connectionErrors, setConnectionErrors] = useState<Record<string, string>>({});
+    const [checkingConnections, setCheckingConnections] = useState(false);
     const [, refreshSettings] = useState(0);
     const approvalResolver = useRef<((approved: boolean) => void) | null>(null);
     const createSessionAgent = (target: SessionStore) => createAgent({
@@ -115,7 +116,9 @@ export const App = ({ permissionMode, session, settings, providerOverride, model
 
     const providerListText = () => {
         const items = settings.providers();
-        const status = (item: typeof items[number]) => !item.global && !item.project
+        const status = (item: typeof items[number]) => checkingConnections && item.global
+            ? 'checking connection…'
+            : !item.global && !item.project
             ? 'available'
             : item.config.enabled === false
             ? 'disabled'
@@ -415,8 +418,8 @@ export const App = ({ permissionMode, session, settings, providerOverride, model
                         : `Session: ephemeral\nMessages: ${activeSession.history.length}`,
                     permissionInfo: () => `Permission mode: ${permissionMode}`,
                     startLoginMenu: () => {
-                        setLoginMenu('login'); setLoginChoice(0); setInput('');
-                        void settings.checkConnections().then(setConnectionErrors);
+                        setLoginMenu('login'); setLoginChoice(0); setInput(''); setCheckingConnections(true);
+                        void settings.checkConnections().then(setConnectionErrors).finally(() => setCheckingConnections(false));
                     },
                     startLogoutMenu: () => { setLoginMenu('logout'); setLoginChoice(0); setInput(''); },
                     modelInfo: modelListText,
