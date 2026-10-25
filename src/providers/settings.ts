@@ -79,10 +79,11 @@ export class SettingsStore {
         for (const [name, config] of Object.entries(this.project.models ?? {})) {
             merged.set(name, { name, config, scope: 'project' });
         }
-        if (!merged.has(defaultModel)) merged.set(defaultModel, {
-            name: defaultModel, config: { provider: 'groq', model: 'openai/gpt-oss-20b' }, scope: 'global',
+        return [...merged.values()].filter(model => {
+            const global = this.global.providers?.[model.config.provider];
+            const project = this.project.providers?.[model.config.provider];
+            return (project?.enabled !== false && Boolean(project)) || (global?.enabled !== false && Boolean(global));
         });
-        return [...merged.values()].filter(model => this.provider(model.config.provider)?.enabled !== false);
     }
 
     resolveModel(task = 'core', overrideModel?: string, overrideProvider?: string) {

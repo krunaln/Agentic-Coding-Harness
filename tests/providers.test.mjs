@@ -18,6 +18,8 @@ test('project models override global defaults and task models fall back to core'
     const root = await mkdtemp(path.join(tmpdir(), 'myai-settings-'));
     t.after(() => rm(root, { recursive: true, force: true }));
     const settings = await SettingsStore.open(root, { globalPath: path.join(root, 'global.json') });
+    await settings.addProvider('ollama', { type: 'ollama', baseUrl: 'http://localhost:11434/v1' }, 'global');
+    await settings.addProvider('freellmapi', { type: 'freellmapi', baseUrl: 'http://localhost:8000/v1' }, 'project');
     await settings.addModel('ollama:qwen', { provider: 'ollama', model: 'qwen' }, 'global');
     await settings.setDefaultModel('ollama:qwen', 'global');
     await settings.addModel('freellmapi:small', { provider: 'freellmapi', model: 'small' }, 'project');
