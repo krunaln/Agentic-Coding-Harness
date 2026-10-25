@@ -83,3 +83,13 @@ test('disconnected providers do not expose their models', async t => {
     await settings.disconnectProvider('ollama', 'global');
     assert.equal(settings.models().length, 0);
 });
+
+test('does not choose the first model when no default is saved', async t => {
+    const root = await mkdtemp(path.join(tmpdir(), 'myai-no-default-'));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const settings = await SettingsStore.open(root, { globalPath: path.join(root, 'global.json') });
+    await settings.addProvider('freellmapi', { type: 'freellmapi', baseUrl: 'http://localhost:3001/v1' }, 'global');
+    await settings.addModel('freellmapi:first', { provider: 'freellmapi', model: 'first' }, 'global');
+    await settings.addModel('freellmapi:second', { provider: 'freellmapi', model: 'second' }, 'global');
+    assert.equal(settings.resolveModel('core'), undefined);
+});
