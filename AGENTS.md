@@ -11,6 +11,21 @@ files in `issues/` at the repository root. Use simple English, clear steps,
 expected behavior, actual behavior, impact, and useful context. Link each issue
 to its backlog item in `todo.md`.
 
+### Issue status
+
+Use only these four statuses:
+
+- `Backlog`: planned, but work has not started.
+- `In progress`: someone is working on it now.
+- `Blocked`: work cannot continue until a problem is solved.
+- `Done`: the work is finished, checked, and the GitHub issue is closed.
+
+Put `Status: Backlog` near the top of every local issue file. When work starts,
+change it to `In progress` and update the matching GitHub issue. When blocked,
+write one short sentence explaining what is needed. When the work is finished,
+run the checks, change it to `Done`, close the GitHub issue, and add the commit
+or pull request link.
+
 ## Current project state
 
 - The primary development branch is `main`.

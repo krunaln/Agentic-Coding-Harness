@@ -2,6 +2,8 @@
 
 This list is for building MyAI. It is not a plan for one user request.
 
+Status words: `Backlog`, `In progress`, `Blocked`, and `Done`.
+
 ## Next
 
 - [ ] [HAR-001](issues/2026-10-25-add-ai-providers.md) Add more AI providers

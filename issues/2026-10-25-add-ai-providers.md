@@ -1,3 +1,5 @@
+Status: Backlog
+
 ## Summary
 
 Add OpenAI, Groq, FreeLLMAPI, and Ollama as model providers.
