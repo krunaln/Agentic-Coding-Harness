@@ -44,6 +44,7 @@ test('provider and model commands pass their arguments to the TUI', async () => 
         show: value => calls.push(`show:${value}`), sessionInfo: () => '', permissionInfo: () => '', quit: () => {},
         providerInfo: () => '', modelInfo: () => '',
         addProvider: async value => calls.push(`provider:add:${value}`),
+        startProviderMenu: () => calls.push('provider:menu'),
         startProviderAdd: () => calls.push('provider:start'),
         removeProvider: async value => calls.push(`provider:remove:${value}`),
         addModel: async value => calls.push(`model:add:${value}`),
@@ -53,6 +54,7 @@ test('provider and model commands pass their arguments to the TUI', async () => 
     };
     const registry = new CommandRegistry(builtinCommands);
     await registry.execute('/provider add ollama', context);
+    await registry.execute('/provider', context);
     await registry.execute('/provider add', context);
     await registry.execute('/provider list', context);
     await registry.execute('/provider', context);
@@ -61,7 +63,7 @@ test('provider and model commands pass their arguments to the TUI', async () => 
     await registry.execute('/model default ollama:qwen', context);
     await registry.execute('/model task review ollama:qwen', context);
     assert.deepEqual(calls, [
-        'provider:add:ollama', 'provider:start', 'show:', 'show:', 'provider:remove:ollama',
+        'provider:add:ollama', 'provider:menu', 'provider:start', 'show:', 'provider:menu', 'provider:remove:ollama',
         'model:add:--global ollama:qwen', 'model:default:ollama:qwen',
         'model:task:review ollama:qwen',
     ]);

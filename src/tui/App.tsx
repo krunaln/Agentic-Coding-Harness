@@ -20,7 +20,8 @@ const workspace = createWorkspace();
 const commandRegistry = new CommandRegistry(builtinCommands);
 const providerChoices = ['groq', 'openai', 'freellmapi', 'ollama'] as const;
 const authChoices = ['api-key', 'chatgpt'] as const;
-type ProviderWizard = { step: 'provider' | 'auth'; provider?: string };
+const providerActions = ['list', 'add', 'remove', 'change'] as const;
+type ProviderWizard = { step: 'action' | 'provider' | 'auth'; provider?: string; action?: 'add' | 'remove' | 'change' };
 
 type AppProps = { permissionMode: PermissionMode; session: SessionStore; settings: SettingsStore; providerOverride?: string; modelOverride?: string };
 
@@ -99,7 +100,7 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
                 setInput('');
                 return;
             }
-            const choices = providerWizard.step === 'provider' ? providerChoices : authChoices;
+            const choices = providerWizard.step === 'action' ? providerActions : providerWizard.step === 'provider' ? providerChoices : authChoices;
             if (key.upArrow) setWizardChoice(current => (current - 1 + choices.length) % choices.length);
             if (key.downArrow) setWizardChoice(current => (current + 1) % choices.length);
             return;
@@ -194,13 +195,35 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
             return;
         }
         if (providerWizard) {
-            const choices = providerWizard.step === 'provider' ? providerChoices : authChoices;
+            const choices = providerWizard.step === 'action' ? providerActions : providerWizard.step === 'provider' ? providerChoices : authChoices;
             const selected = choices[wizardChoice];
             if (!selected) return;
+            if (providerWizard.step === 'action') {
+                if (selected === 'list') {
+                    appendMessage('notice', settings.providers().map(item => `${item.name} · ${item.config.auth ?? 'local/api key'}`).join('\n'));
+                    setProviderWizard(null); setWizardChoice(0); setInput('');
+                    return;
+                }
+                setProviderWizard({ step: 'provider', action: selected as 'add' | 'remove' | 'change' });
+                setWizardChoice(0); setInput('');
+                return;
+            }
             if (providerWizard.step === 'provider' && selected === 'openai') {
-                setProviderWizard({ step: 'auth', provider: selected });
+                if (providerWizard.action === 'remove') {
+                    await settings.removeProvider(selected, 'global');
+                    refreshSettings(value => value + 1); appendMessage('notice', `Removed ${selected} provider.`);
+                    setProviderWizard(null); setWizardChoice(0); setInput('');
+                    return;
+                }
+                setProviderWizard({ step: 'auth', provider: selected as string });
                 setWizardChoice(0);
                 setInput('');
+                return;
+            }
+            if (providerWizard.step === 'provider' && providerWizard.action === 'remove') {
+                await settings.removeProvider(selected, 'global');
+                refreshSettings(value => value + 1); appendMessage('notice', `Removed ${selected} provider.`);
+                setProviderWizard(null); setWizardChoice(0); setInput('');
                 return;
             }
             await addProviderFromWizard(providerWizard.provider ?? selected, providerWizard.step === 'auth' ? selected as 'api-key' | 'chatgpt' : 'api-key');
@@ -228,7 +251,8 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
                         ? `Session: ${activeSession.header.id}\nCreated: ${activeSession.header.createdAt}\nFile: ${activeSession.filePath}\nMessages: ${activeSession.history.length}`
                         : `Session: ephemeral\nMessages: ${activeSession.history.length}`,
                     permissionInfo: () => `Permission mode: ${permissionMode}`,
-                    startProviderAdd: () => { setProviderWizard({ step: 'provider' }); setWizardChoice(0); setInput(''); appendMessage('notice', 'Choose a provider to add.'); },
+                    startProviderMenu: () => { setProviderWizard({ step: 'action' }); setWizardChoice(0); setInput(''); },
+                    startProviderAdd: () => { setProviderWizard({ step: 'provider', action: 'add' }); setWizardChoice(0); setInput(''); appendMessage('notice', 'Choose a provider to add.'); },
                     providerInfo: () => settings.providers().map(item => {
                         const scopes = [item.global ? 'global' : '', item.project ? 'project' : ''].filter(Boolean).join(', ');
                         return `${item.name} · ${item.config.auth ?? 'local/api key'} · ${scopes || 'available, not connected'}`;
@@ -304,8 +328,8 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
             )}
             {providerWizard && (
                 <Box flexDirection="column" marginTop={1} borderStyle="round" borderColor="cyan" paddingX={1}>
-                    <Text bold color="cyan">{providerWizard.step === 'provider' ? 'Add provider' : 'OpenAI connection method'}</Text>
-                    {(providerWizard.step === 'provider' ? providerChoices : authChoices).map((choice, index) => (
+                    <Text bold color="cyan">{providerWizard.step === 'action' ? 'Provider' : providerWizard.step === 'provider' ? `${providerWizard.action} provider` : 'OpenAI connection method'}</Text>
+                    {(providerWizard.step === 'action' ? providerActions : providerWizard.step === 'provider' ? providerChoices : authChoices).map((choice, index) => (
                         <Text key={choice} color={index === wizardChoice ? 'cyan' : undefined}>
                             {index === wizardChoice ? '❯ ' : '  '}{choice}
                         </Text>

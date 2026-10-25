@@ -8,6 +8,7 @@ export type CommandContext = {
     providerInfo(): string;
     modelInfo(): string;
     addProvider(args: string): Promise<void>;
+    startProviderMenu(): void;
     startProviderAdd(): void;
     removeProvider(args: string): Promise<void>;
     addModel(args: string): Promise<void>;
