@@ -29,6 +29,14 @@ type ProviderWizard = { step: 'action' | 'provider' | 'auth' | 'config'; provide
 
 type AppProps = { permissionMode: PermissionMode; session: SessionStore; settings: SettingsStore; providerOverride?: string; modelOverride?: string };
 
+function userFacingAgentError(error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes('MODEL_RATE_LIMIT') || message.includes('All models exhausted')) {
+        return `The selected model cannot handle this tool request right now. Open /model and choose another available model, or wait for the provider rate limit to reset.\n\nProvider details: ${message}`;
+    }
+    return message;
+}
+
 function restoredTranscript(history: BaseMessage[]): TranscriptEntry[] {
     const entries: TranscriptEntry[] = [];
     for (const message of history) {
@@ -427,7 +435,7 @@ export const App = ({ permissionMode, session, settings, providerOverride, model
                     quit: exit,
                 });
             } catch (error) {
-                appendMessage('error', error instanceof Error ? error.message : String(error));
+                appendMessage('error', userFacingAgentError(error));
             } finally {
                 setBusy(false);
             }
@@ -442,7 +450,7 @@ export const App = ({ permissionMode, session, settings, providerOverride, model
             const answer = await agent.run(value, onEvent, controller.signal);
             appendMessage('assistant', answer);
         } catch (error) {
-            appendMessage('error', error instanceof Error ? error.message : String(error));
+            appendMessage('error', userFacingAgentError(error));
         } finally {
             active.current = null;
             setBusy(false);
@@ -501,6 +509,7 @@ export const App = ({ permissionMode, session, settings, providerOverride, model
             {modelPicker && (
                 <Box flexDirection="column" marginTop={1} borderStyle="round" borderColor="magenta" paddingX={1}>
                     <Text bold color="magenta">Choose model (current: {settings.resolveModel('core')?.name ?? 'none'})</Text>
+                    {(['freellmapi:auto', 'freellmapi:fusion'].includes(settings.resolveModel('core')?.name ?? '') && <Text color="yellow">The current router may not support tool calls. Choose a named model for coding work.</Text>)}
                     {modelLoading && <Text dimColor>Loading models from connected logins...</Text>}
                     {!modelLoading && Object.entries(modelErrors).map(([provider, error]) => <Text key={provider} color="yellow">{provider}: unavailable · {error}</Text>)}
                     {!modelLoading && !settings.models().length && <Text dimColor>No models found.</Text>}
