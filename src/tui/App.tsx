@@ -58,6 +58,7 @@ export const App = ({ permissionMode, session, settings, providerOverride, model
     const [modelScroll, setModelScroll] = useState(0);
     const [modelLoading, setModelLoading] = useState(false);
     const [modelErrors, setModelErrors] = useState<Record<string, string>>({});
+    const [connectionErrors, setConnectionErrors] = useState<Record<string, string>>({});
     const [, refreshSettings] = useState(0);
     const approvalResolver = useRef<((approved: boolean) => void) | null>(null);
     const createSessionAgent = (target: SessionStore) => createAgent({
@@ -120,6 +121,7 @@ export const App = ({ permissionMode, session, settings, providerOverride, model
             ? 'disabled'
             : item.config.auth === 'chatgpt'
                 ? 'subscription sign-in pending'
+                : connectionErrors[item.name] ? `not connected · ${connectionErrors[item.name]}`
                 : (item.config.apiKeyEnv ?? (item.config.type === 'freellmapi' ? `provider:${item.name}` : undefined)) && !process.env[item.config.apiKeyEnv ?? `provider:${item.name}`]?.trim()
                     ? `not connected · missing API key`
                     : 'configured';
@@ -412,7 +414,10 @@ export const App = ({ permissionMode, session, settings, providerOverride, model
                         ? `Session: ${activeSession.header.id}\nCreated: ${activeSession.header.createdAt}\nFile: ${activeSession.filePath}\nMessages: ${activeSession.history.length}`
                         : `Session: ephemeral\nMessages: ${activeSession.history.length}`,
                     permissionInfo: () => `Permission mode: ${permissionMode}`,
-                    startLoginMenu: () => { setLoginMenu('login'); setLoginChoice(0); setInput(''); },
+                    startLoginMenu: () => {
+                        setLoginMenu('login'); setLoginChoice(0); setInput('');
+                        void settings.checkConnections().then(setConnectionErrors);
+                    },
                     startLogoutMenu: () => { setLoginMenu('logout'); setLoginChoice(0); setInput(''); },
                     modelInfo: modelListText,
                     addModel: async args => {

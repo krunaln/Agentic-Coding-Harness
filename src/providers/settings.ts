@@ -189,6 +189,33 @@ export class SettingsStore {
         return this.lastDiscoveryErrors;
     }
 
+    async checkConnections() {
+        const errors: Record<string, string> = {};
+        for (const [name, provider] of Object.entries(this.global.providers ?? {}).filter(([, config]) => config.enabled !== false)) {
+            if (provider.auth === 'chatgpt') continue;
+            const credentialEnv = provider.apiKeyEnv ?? (provider.type === 'freellmapi' ? `provider:${name}` : undefined);
+            if (credentialEnv && !process.env[credentialEnv]?.trim()) {
+                errors[name] = 'missing API key';
+                continue;
+            }
+            const endpoint = provider.baseUrl
+                ?? (name === 'groq' ? 'https://api.groq.com/openai/v1' : name === 'openai' ? 'https://api.openai.com/v1' : undefined);
+            if (!endpoint) continue;
+            try {
+                const headers: Record<string, string> = {};
+                const key = provider.apiKeyEnv ? process.env[provider.apiKeyEnv] : undefined;
+                if (key) headers.Authorization = `Bearer ${key}`;
+                const baseUrl = endpoint.replace(/\/$/, '');
+                const apiBase = /\/v1$/i.test(baseUrl) ? baseUrl : `${baseUrl}/v1`;
+                const response = await fetch(`${apiBase}/models`, { headers, signal: AbortSignal.timeout(2500) });
+                if (!response.ok) errors[name] = `HTTP ${response.status}`;
+            } catch (error) {
+                errors[name] = error instanceof Error ? error.message : String(error);
+            }
+        }
+        return errors;
+    }
+
     info() {
         const core = this.resolveModel('core');
         return `Core model: ${core?.name ?? 'not set'}\nSettings: ${this.globalPath}\nModels: ${this.models().map(model => model.name).join(', ') || 'none'}`;
