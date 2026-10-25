@@ -70,6 +70,10 @@ await submit('Create tmp/manual-regression.txt with the text manual regression.'
 await submit('Read tmp/manual-regression.txt and tell me its contents.', 'read prompt');
 await submit('Delete tmp/manual-regression.txt.', 'delete prompt');
 await submit('/logout', 'logout menu');
+app.stdin.write('\r');
+await waitForIdle();
+await sleep(350);
+capture('logout selected');
 
 await rm(root, { recursive: true, force: true });
 app.unmount();
