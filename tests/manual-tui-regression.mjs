@@ -38,6 +38,10 @@ const waitForIdle = async () => {
             app.stdin.write('yes');
             await sleep(50);
             app.stdin.write('\r');
+            for (let approvalAttempt = 0; approvalAttempt < 40; approvalAttempt += 1) {
+                await sleep(100);
+                if (!/Approve .*\?/.test(app.lastFrame())) break;
+            }
         }
         if (!frame.includes('Agent is working...')) return;
         await sleep(500);
