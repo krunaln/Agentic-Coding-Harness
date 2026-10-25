@@ -53,7 +53,13 @@ export class SettingsStore {
 
     providers() {
         return Object.keys({ ...defaultProviders, ...(this.global.providers ?? {}), ...(this.project.providers ?? {}) })
-            .map(name => ({ name, config: this.provider(name)! }));
+            .map(name => ({
+                name,
+                config: this.provider(name)!,
+                available: Boolean(defaultProviders[name]),
+                global: Boolean(this.global.providers?.[name]?.enabled !== false && this.global.providers?.[name]),
+                project: Boolean(this.project.providers?.[name]?.enabled !== false && this.project.providers?.[name]),
+            }));
     }
 
     models(): ModelChoice[] {

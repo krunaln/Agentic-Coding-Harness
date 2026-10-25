@@ -17,12 +17,12 @@ export const builtinCommands: SlashCommand[] = [
     },
     { name: 'session', description: 'Show current session information', execute: (_args, context) => context.show(context.sessionInfo()) },
     { name: 'permissions', aliases: ['permission'], description: 'Show the active permission mode', execute: (_args, context) => context.show(context.permissionInfo()) },
-    { name: 'providers', description: 'Show available providers', execute: (_args, context) => context.show(context.providerInfo()) },
-    { name: 'provider', description: 'Add or remove a provider', usage: '<add|remove> <name>', execute: async (args, context) => {
+    { name: 'provider', description: 'List, add, or remove a provider', usage: '<list|add|remove> [name]', execute: async (args, context) => {
         const [action, ...rest] = args.split(/\s+/).filter(Boolean);
+        if (action === 'list') return context.show(context.providerInfo());
         if (action === 'add') return rest.length ? context.addProvider(rest.join(' ')) : context.startProviderAdd();
         if (action === 'remove') return context.removeProvider(rest.join(' '));
-        throw new Error('Usage: /provider <add|remove> <name>');
+        throw new Error('Usage: /provider <list|add|remove> [name]');
     } },
     { name: 'models', description: 'Show available models', execute: (_args, context) => context.show(context.modelInfo()) },
     { name: 'model', description: 'Add, remove, or choose a model', usage: '<add|remove|default|task> ...', execute: async (args, context) => {

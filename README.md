@@ -85,7 +85,7 @@ MyAI can use Groq, OpenAI, FreeLLMAPI, and Ollama. Add providers and models
 from the TUI:
 
 ```text
-/providers
+/provider list
 /provider add ollama
 /models
 /model add --global ollama:qwen

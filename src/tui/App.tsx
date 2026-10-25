@@ -229,7 +229,10 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
                         : `Session: ephemeral\nMessages: ${activeSession.history.length}`,
                     permissionInfo: () => `Permission mode: ${permissionMode}`,
                     startProviderAdd: () => { setProviderWizard({ step: 'provider' }); setWizardChoice(0); setInput(''); appendMessage('notice', 'Choose a provider to add.'); },
-                    providerInfo: () => settings.providers().map(item => `${item.name} · ${item.config.auth ?? 'local/api key'}${item.config.enabled === false ? ' · disabled' : ''}`).join('\n'),
+                    providerInfo: () => settings.providers().map(item => {
+                        const scopes = [item.global ? 'global' : '', item.project ? 'project' : ''].filter(Boolean).join(', ');
+                        return `${item.name} · ${item.config.auth ?? 'local/api key'} · ${scopes || 'available, not connected'}`;
+                    }).join('\n'),
                     modelInfo: () => settings.info(),
                     addProvider: async args => {
                         const [name, auth] = args.split(/\s+/).filter(Boolean);
