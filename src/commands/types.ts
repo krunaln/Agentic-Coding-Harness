@@ -5,14 +5,9 @@ export type CommandContext = {
     show(text: string): void;
     sessionInfo(): string;
     permissionInfo(): string;
-    providerInfo(): string;
     modelInfo(): string;
-    addProvider(args: string): Promise<void>;
-    startProviderMenu(): void;
-    startProviderAdd(): void;
     startLoginMenu(): void;
     startLogoutMenu(): void;
-    removeProvider(args: string): Promise<void>;
     addModel(args: string): Promise<void>;
     removeModel(args: string): Promise<void>;
     setDefaultModel(args: string): Promise<void>;

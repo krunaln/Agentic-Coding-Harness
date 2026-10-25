@@ -42,11 +42,7 @@ test('provider and model commands pass their arguments to the TUI', async () => 
     const context = {
         clear: () => {}, newSession: async () => {}, resumeSession: async () => {},
         show: value => calls.push(`show:${value}`), sessionInfo: () => '', permissionInfo: () => '', quit: () => {},
-        providerInfo: () => '', modelInfo: () => '',
-        addProvider: async value => calls.push(`provider:add:${value}`),
-        startProviderMenu: () => calls.push('provider:menu'),
-        startProviderAdd: () => calls.push('provider:start'),
-        removeProvider: async value => calls.push(`provider:remove:${value}`),
+        modelInfo: () => '',
         addModel: async value => calls.push(`model:add:${value}`),
         removeModel: async value => calls.push(`model:remove:${value}`),
         setDefaultModel: async value => calls.push(`model:default:${value}`),
@@ -54,12 +50,8 @@ test('provider and model commands pass their arguments to the TUI', async () => 
         startModelMenu: () => calls.push('model:menu'),
     };
     const registry = new CommandRegistry(builtinCommands);
-    await registry.execute('/provider add ollama', context);
-    await registry.execute('/provider add', context);
-    await registry.execute('/provider list', context);
-    await registry.execute('/provider remove ollama', context);
     await registry.execute('/model', context);
     assert.deepEqual(calls, [
-        'provider:add:ollama', 'provider:start', 'show:', 'provider:remove:ollama', 'model:menu',
+        'model:menu',
     ]);
 });

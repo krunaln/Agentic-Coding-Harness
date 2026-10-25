@@ -375,18 +375,9 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
                         ? `Session: ${activeSession.header.id}\nCreated: ${activeSession.header.createdAt}\nFile: ${activeSession.filePath}\nMessages: ${activeSession.history.length}`
                         : `Session: ephemeral\nMessages: ${activeSession.history.length}`,
                     permissionInfo: () => `Permission mode: ${permissionMode}`,
-                    startProviderMenu: () => { setProviderWizard({ step: 'action' }); setWizardChoice(0); setInput(''); },
-                    startProviderAdd: () => { setProviderWizard({ step: 'provider', action: 'add' }); setWizardChoice(0); setInput(''); appendMessage('notice', 'Choose a provider to add.'); },
                     startLoginMenu: () => { setLoginMenu('login'); setLoginChoice(0); setInput(''); },
                     startLogoutMenu: () => { setLoginMenu('logout'); setLoginChoice(0); setInput(''); },
-                    providerInfo: providerListText,
                     modelInfo: modelListText,
-                    addProvider: async args => {
-                        const [name, auth] = args.split(/\s+/).filter(Boolean);
-                        if (!name || !['groq', 'openai', 'freellmapi', 'ollama'].includes(name)) throw new Error('Usage: /provider add <groq|openai|freellmapi|ollama>');
-                        await addProviderFromWizard(name, auth === 'chatgpt' ? 'chatgpt' : 'api-key');
-                    },
-                    removeProvider: async args => { if (!args) throw new Error('Usage: /provider remove <name>'); await settings.removeProvider(args.trim(), 'global'); refreshSettings(value => value + 1); appendMessage('notice', `Removed ${args.trim()} provider.`); },
                     addModel: async args => {
                         const tokens = args.split(/\s+/).filter(Boolean); const scope = tokens.includes('--global') ? 'global' as const : 'project' as const; const name = tokens.find(token => !token.startsWith('--'));
                         if (!name || !name.includes(':')) throw new Error('Usage: /model add [--global] <provider:model>');

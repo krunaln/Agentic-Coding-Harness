@@ -19,14 +19,6 @@ export const builtinCommands: SlashCommand[] = [
     { name: 'permissions', aliases: ['permission'], description: 'Show the active permission mode', execute: (_args, context) => context.show(context.permissionInfo()) },
     { name: 'login', description: 'Connect an AI account or API key', execute: (_args, context) => context.startLoginMenu() },
     { name: 'logout', description: 'Remove a connected login', execute: (_args, context) => context.startLogoutMenu() },
-    { name: 'provider', description: 'List, add, or remove a provider', usage: '<list|add|remove> [name]', execute: async (args, context) => {
-        const [action, ...rest] = args.split(/\s+/).filter(Boolean);
-        if (!action) return context.startProviderMenu();
-        if (action === 'list') return context.show(context.providerInfo());
-        if (action === 'add') return rest.length ? context.addProvider(rest.join(' ')) : context.startProviderAdd();
-        if (action === 'remove') return context.removeProvider(rest.join(' '));
-        throw new Error('Usage: /provider <list|add|remove> [name]');
-    } },
     { name: 'model', description: 'Choose the current model', execute: (_args, context) => context.startModelMenu() },
     { name: 'config', description: 'Show MyAI settings', execute: (_args, context) => context.show(context.modelInfo()) },
     { name: 'clear', description: 'Clear the visible transcript', execute: (_args, context) => context.clear() },
