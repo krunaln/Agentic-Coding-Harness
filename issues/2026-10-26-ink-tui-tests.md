@@ -31,3 +31,17 @@ The login screen now performs a short provider connection check when it opens an
 The latest run also exposed a race in the manual Ink driver: approval text can be appended to the next prompt when the driver submits `yes` while the approval box is changing. The app should keep input locked until the approval result is cleared, and the manual driver should wait for the approval frame to disappear before sending the next prompt.
 
 The focused Ink test now confirms `/logout` opens, selecting `ollama` disconnects it, and the confirmation appears. The longer live script still needs more generous state waits around the final menu transition.
+
+## Completed changes
+
+- Added Ink tests for `/login`, `/model`, and `/logout`.
+- Kept the live FreeLLMAPI and Ollama regression file separate from normal tests.
+- Added connection checks when the login menu opens.
+- Added clear model discovery errors for unavailable providers.
+- Added a wait in the manual driver so approval text does not leak into the next prompt.
+- Removed project connection wording from the login view.
+
+## Remaining work
+
+- Improve the long live driver wait around the final logout transition.
+- Add a visible `checking connection` state to the captured login regression snapshot.

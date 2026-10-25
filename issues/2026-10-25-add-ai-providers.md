@@ -36,6 +36,16 @@ providers should work without sending requests to the cloud.
 - Replace stale discovered models after a successful refresh.
 - Keep long model lists inside a scrollable TUI window.
 
+## Regression findings and fixes
+
+- FreeLLMAPI model discovery works against the live endpoint and returns its real catalog.
+- Ollama is skipped when it is unavailable and its failure is shown in the model picker.
+- Login status now checks the provider endpoint instead of trusting saved configuration alone.
+- The login view uses one global connected-login list; project/local connection sections were removed.
+- `/model` refreshes provider catalogs and removes stale saved models after a successful refresh.
+- The active model is not replaced automatically when a provider is added or logged in.
+- The focused Ink logout test confirms that selecting a login disconnects it and shows confirmation.
+
 ## Impact
 
 High. This is the first step toward using MyAI with cheaper and local models.
