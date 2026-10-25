@@ -10,6 +10,7 @@ import { createWorkspace, type Workspace } from '../tools/workspace.js';
 import type { ApprovalRequest, PermissionMode } from '../permissions.js';
 
 export type AgentEvent =
+    | { type: 'model-used'; model: string }
     | { type: 'tool-started'; callId: string; name: string; label: string; args: unknown }
     | { type: 'tool-repairing'; callId?: string; name?: string; label?: string; error: string; attempt: 1 }
     | { type: 'permission-requested'; callId: string; name: string; label: string; args: unknown }
@@ -87,6 +88,7 @@ export function createAgent(options: CreateAgentOptions = {}) {
             const messages = [...history, new HumanMessage(prompt)];
             const previousLength = history.length;
             let repairUsed = false;
+            let reportedModel: string | undefined;
             try {
                 if (!model) {
                     const baseModel = new ChatGroq({
@@ -154,6 +156,14 @@ export function createAgent(options: CreateAgentOptions = {}) {
                     signal?.throwIfAborted();
                     const response = await invokeModel();
                     if (typeof response === 'string') return response;
+                    const metadata = response.response_metadata as Record<string, unknown> | undefined;
+                    const routed = response.additional_kwargs?._routed_via as { model?: string } | undefined;
+                    const usedModel = typeof metadata?.model === 'string' ? metadata.model
+                        : typeof routed?.model === 'string' ? routed.model : undefined;
+                    if (usedModel && usedModel !== reportedModel) {
+                        reportedModel = usedModel;
+                        onEvent({ type: 'model-used', model: usedModel });
+                    }
                     messages.push(response);
                     if (!response.tool_calls?.length) {
                         if (!response.text.trim()) throw new Error('Model returned no text and no tool calls.');

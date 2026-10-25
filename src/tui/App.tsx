@@ -221,6 +221,9 @@ export const App = ({ permissionMode, session, settings, providerOverride, model
     };
 
     const onEvent = (event: AgentEvent) => {
+        if (event.type === 'model-used') {
+            appendMessage('notice', `Model used: ${event.model}`);
+        }
         if (event.type === 'tool-started') {
             setEntries(current => {
                 let repairIndex = -1;
