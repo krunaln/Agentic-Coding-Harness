@@ -21,7 +21,7 @@ const commandRegistry = new CommandRegistry(builtinCommands);
 const providerChoices = ['groq', 'openai', 'freellmapi', 'ollama'] as const;
 const authChoices = ['api-key', 'chatgpt'] as const;
 const providerActions = ['list', 'add', 'remove', 'change'] as const;
-type ProviderWizard = { step: 'action' | 'provider' | 'auth'; provider?: string; action?: 'add' | 'remove' | 'change' };
+type ProviderWizard = { step: 'action' | 'provider' | 'auth' | 'config'; provider?: string; action?: 'add' | 'remove' | 'change'; field?: 'url' | 'apiKeyEnv'; url?: string };
 
 type AppProps = { permissionMode: PermissionMode; session: SessionStore; settings: SettingsStore; providerOverride?: string; modelOverride?: string };
 
@@ -71,14 +71,14 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
         approvalResolver.current?.(false);
     }, []);
 
-    const providerConfig = (name: string, auth: 'api-key' | 'chatgpt' = 'api-key') => name === 'groq'
+    const providerConfig = (name: string, auth: 'api-key' | 'chatgpt' = 'api-key', url?: string, apiKeyEnv?: string) => name === 'groq'
         ? { type: 'groq' as const, apiKeyEnv: 'GROQ_API_KEY' }
         : name === 'openai'
             ? { type: 'openai' as const, auth, apiKeyEnv: 'OPENAI_API_KEY' }
-            : { type: name as 'freellmapi' | 'ollama', baseUrl: name === 'ollama' ? 'http://localhost:11434/v1' : 'http://localhost:8000/v1', apiKeyEnv: name === 'freellmapi' ? 'FREELLMAPI_API_KEY' : undefined };
+            : { type: name as 'freellmapi' | 'ollama', baseUrl: url || (name === 'ollama' ? 'http://localhost:11434/v1' : 'http://localhost:8000/v1'), apiKeyEnv: name === 'freellmapi' ? (apiKeyEnv || 'FREELLMAPI_API_KEY') : undefined };
 
-    const addProviderFromWizard = async (name: string, auth: 'api-key' | 'chatgpt' = 'api-key') => {
-        await settings.addProvider(name, providerConfig(name, auth), 'global');
+    const addProviderFromWizard = async (name: string, auth: 'api-key' | 'chatgpt' = 'api-key', url?: string, apiKeyEnv?: string) => {
+        await settings.addProvider(name, providerConfig(name, auth, url, apiKeyEnv), 'global');
         refreshSettings(value => value + 1);
         appendMessage('notice', `Added ${name} provider globally.`);
         setProviderWizard(null);
@@ -195,6 +195,17 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
             return;
         }
         if (providerWizard) {
+            if (providerWizard.step === 'config') {
+                const entered = value.trim();
+                if (!entered) return;
+                if (providerWizard.field === 'url' && providerWizard.provider === 'freellmapi') {
+                    setProviderWizard({ ...providerWizard, field: 'apiKeyEnv', url: entered });
+                    setInput('');
+                    return;
+                }
+                await addProviderFromWizard(providerWizard.provider!, 'api-key', providerWizard.url ?? entered, providerWizard.field === 'apiKeyEnv' ? entered : undefined);
+                return;
+            }
             const choices = providerWizard.step === 'action' ? providerActions : providerWizard.step === 'provider' ? providerChoices : authChoices;
             const selected = choices[wizardChoice];
             if (!selected) return;
@@ -218,6 +229,11 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
                 setProviderWizard({ step: 'auth', provider: selected as string });
                 setWizardChoice(0);
                 setInput('');
+                return;
+            }
+            if (providerWizard.step === 'provider' && (selected === 'ollama' || selected === 'freellmapi')) {
+                setProviderWizard({ step: 'config', provider: selected, action: providerWizard.action, field: 'url' });
+                setWizardChoice(0); setInput('');
                 return;
             }
             if (providerWizard.step === 'provider' && providerWizard.action === 'remove') {
@@ -328,8 +344,8 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
             )}
             {providerWizard && (
                 <Box flexDirection="column" marginTop={1} borderStyle="round" borderColor="cyan" paddingX={1}>
-                    <Text bold color="cyan">{providerWizard.step === 'action' ? 'Provider' : providerWizard.step === 'provider' ? `${providerWizard.action} provider` : 'OpenAI connection method'}</Text>
-                    {(providerWizard.step === 'action' ? providerActions : providerWizard.step === 'provider' ? providerChoices : authChoices).map((choice, index) => (
+                    <Text bold color="cyan">{providerWizard.step === 'action' ? 'Provider' : providerWizard.step === 'provider' ? `${providerWizard.action} provider` : providerWizard.step === 'config' ? `${providerWizard.provider} setup` : 'OpenAI connection method'}</Text>
+                    {providerWizard.step === 'config' ? <Text>Enter {providerWizard.field === 'url' ? 'base URL' : 'API key environment variable'}:</Text> : (providerWizard.step === 'action' ? providerActions : providerWizard.step === 'provider' ? providerChoices : authChoices).map((choice, index) => (
                         <Text key={choice} color={index === wizardChoice ? 'cyan' : undefined}>
                             {index === wizardChoice ? '❯ ' : '  '}{choice}
                         </Text>
