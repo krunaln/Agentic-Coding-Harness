@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import type { ConfigScope, ModelChoice, ModelConfig, MyAIConfig, ProviderConfig, ProviderType } from './types.js';
+import { loadProviderSecret } from './secrets.js';
 
 const defaultModel = 'groq:openai/gpt-oss-20b';
 const defaultProviders: Record<string, ProviderConfig> = {
@@ -42,7 +43,15 @@ export class SettingsStore {
     static async open(projectRoot: string, options: { globalPath?: string } = {}) {
         const globalPath = options.globalPath ?? path.join(os.homedir(), '.myai', 'config.json');
         const projectPath = path.join(path.resolve(projectRoot), '.myai', 'config.json');
-        return new SettingsStore(projectRoot, await readConfig(globalPath), await readConfig(projectPath));
+        const global = await readConfig(globalPath);
+        const project = await readConfig(projectPath);
+        for (const config of Object.values({ ...global.providers, ...project.providers })) {
+            if (config.secretRef) {
+                const secret = await loadProviderSecret(config.secretRef);
+                if (secret) process.env[config.apiKeyEnv ?? config.secretRef] = secret;
+            }
+        }
+        return new SettingsStore(projectRoot, global, project);
     }
 
     private config(scope: ConfigScope) { return scope === 'global' ? this.global : this.project; }

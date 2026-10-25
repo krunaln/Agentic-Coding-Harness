@@ -7,6 +7,7 @@ export type ProviderConfig = {
     auth?: OpenAIAuth;
     baseUrl?: string;
     apiKeyEnv?: string;
+    secretRef?: string;
     enabled?: boolean;
 };
 
