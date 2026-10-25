@@ -33,3 +33,8 @@ Status words: `Backlog`, `In progress`, `Blocked`, and `Done`.
 - [ ] [HAR-007](issues/2026-10-25-parallel-safe-reads.md) Run safe read-only tools at the same time. Keep file changes in order.
 - [ ] [HAR-008](issues/2026-10-25-file-diffs.md) Show a file diff after every file change.
 - [ ] [HAR-009](issues/2026-10-25-publish-npm.md) Publish MyAI to npm
+
+- [ ] [HAR-010](issues/2026-10-26-ink-tui-tests.md) Test the TUI with Ink testing tools
+  - Test login, logout, and model selection with keyboard input.
+  - Check menus, prompts, errors, and cancel actions.
+  - Keep fake provider tests separate from live services.

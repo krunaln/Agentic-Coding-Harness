@@ -39,7 +39,7 @@ function restoredTranscript(history: BaseMessage[]): TranscriptEntry[] {
     return entries;
 }
 
-const App = ({ permissionMode, session, settings, providerOverride, modelOverride }: AppProps) => {
+export const App = ({ permissionMode, session, settings, providerOverride, modelOverride }: AppProps) => {
     const { exit } = useApp();
     const [input, setInput] = useState('');
     const [entries, setEntries] = useState<TranscriptEntry[]>(() => restoredTranscript(session.history));
