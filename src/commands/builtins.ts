@@ -27,16 +27,7 @@ export const builtinCommands: SlashCommand[] = [
         if (action === 'remove') return context.removeProvider(rest.join(' '));
         throw new Error('Usage: /provider <list|add|remove> [name]');
     } },
-    { name: 'models', description: 'Show available models', execute: (_args, context) => context.show(context.modelInfo()) },
-    { name: 'model', description: 'Add, remove, or choose a model', usage: '<add|remove|default|task> ...', execute: async (args, context) => {
-        const [action, ...rest] = args.split(/\s+/).filter(Boolean);
-        if (!action) return context.startModelMenu();
-        if (action === 'add') return context.addModel(rest.join(' '));
-        if (action === 'remove') return context.removeModel(rest.join(' '));
-        if (action === 'default') return context.setDefaultModel(rest.join(' '));
-        if (action === 'task') return context.setTaskModel(rest.join(' '));
-        throw new Error('Usage: /model <add|remove|default|task> ...');
-    } },
+    { name: 'model', description: 'Choose the current model', execute: (_args, context) => context.startModelMenu() },
     { name: 'config', description: 'Show MyAI settings', execute: (_args, context) => context.show(context.modelInfo()) },
     { name: 'clear', description: 'Clear the visible transcript', execute: (_args, context) => context.clear() },
     { name: 'quit', aliases: ['exit'], description: 'Exit MyAI', execute: (_args, context) => context.quit() },

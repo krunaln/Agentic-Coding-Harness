@@ -87,10 +87,7 @@ from the TUI:
 ```text
 /provider list
 /provider add ollama
-/models
-/model add --global ollama:qwen
-/model default ollama:qwen
-/model task review openai:gpt-4.1
+/model
 ```
 
 Global models are available in every project. A model added without `--global`

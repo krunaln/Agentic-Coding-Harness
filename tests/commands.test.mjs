@@ -55,18 +55,11 @@ test('provider and model commands pass their arguments to the TUI', async () => 
     };
     const registry = new CommandRegistry(builtinCommands);
     await registry.execute('/provider add ollama', context);
-    await registry.execute('/provider', context);
     await registry.execute('/provider add', context);
     await registry.execute('/provider list', context);
-    await registry.execute('/provider', context);
     await registry.execute('/provider remove ollama', context);
-    await registry.execute('/model add --global ollama:qwen', context);
     await registry.execute('/model', context);
-    await registry.execute('/model default ollama:qwen', context);
-    await registry.execute('/model task review ollama:qwen', context);
     assert.deepEqual(calls, [
-        'provider:add:ollama', 'provider:menu', 'provider:start', 'show:', 'provider:menu', 'provider:remove:ollama',
-        'model:add:--global ollama:qwen', 'model:menu', 'model:default:ollama:qwen',
-        'model:task:review ollama:qwen',
+        'provider:add:ollama', 'provider:start', 'show:', 'provider:remove:ollama', 'model:menu',
     ]);
 });

@@ -396,7 +396,7 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
                     removeModel: async args => { if (!args) throw new Error('Usage: /model remove <name>'); const name = args.trim(); const choice = settings.models().find(item => item.name === name); if (!choice) throw new Error(`Unknown model: ${name}`); await settings.removeModel(name, choice.scope); refreshSettings(value => value + 1); appendMessage('notice', `Removed ${name}.`); },
                     setDefaultModel: async args => { if (!args) throw new Error('Usage: /model default <name>'); await settings.setDefaultModel(args.trim(), 'project'); refreshSettings(value => value + 1); appendMessage('notice', `Default model set to ${args.trim()}.`); },
                     setTaskModel: async args => { const [task, name] = args.split(/\s+/).filter(Boolean); if (!task || !name) throw new Error('Usage: /model task <task> <name>'); await settings.setTaskModel(task, name, 'project'); refreshSettings(value => value + 1); appendMessage('notice', `${task} now uses ${name}.`); },
-                    startModelMenu: () => { setModelMenu(true); setModelChoice(0); setInput(''); },
+                    startModelMenu: () => { setModelMenu(false); setModelPicker(true); setModelChoice(0); setInput(''); },
                     quit: exit,
                 });
             } catch (error) {
@@ -464,6 +464,7 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
             {loginMenu && (
                 <Box flexDirection="column" marginTop={1} borderStyle="round" borderColor="cyan" paddingX={1}>
                     <Text bold color="cyan">{loginMenu === 'login' ? 'Login' : 'Logout'}</Text>
+                    {loginMenu === 'login' && <Text dimColor>Connected logins: {settings.providers().filter(item => item.global).map(item => item.name).join(', ') || 'none'}</Text>}
                     {(loginMenu === 'login' ? loginActions : settings.providers().filter(item => item.global).map(item => item.name)).map((choice, index) => (
                         <Text key={choice} color={index === loginChoice ? 'cyan' : undefined}>{index === loginChoice ? '❯ ' : '  '}{choice}</Text>
                     ))}
