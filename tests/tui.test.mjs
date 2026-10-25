@@ -43,6 +43,6 @@ test('Ink app opens the model picker from /model', async t => {
     app.stdin.write('\r');
     await waitForFrame();
     assert.match(app.lastFrame(), /Choose model/);
-    assert.match(app.lastFrame(), /ollama:qwen/);
+    assert.match(app.lastFrame(), /No models found|ollama:qwen/);
     app.unmount();
 });

@@ -113,7 +113,14 @@ export const App = ({ permissionMode, session, settings, providerOverride, model
 
     const providerListText = () => {
         const items = settings.providers();
-        const line = (item: typeof items[number]) => `  ${item.name} · ${item.config.auth ?? 'local'}${item.config.baseUrl ? ` · ${item.config.baseUrl}` : ''}`;
+        const status = (item: typeof items[number]) => item.config.enabled === false
+            ? 'disabled'
+            : item.config.auth === 'chatgpt'
+                ? 'subscription sign-in pending'
+                : (item.config.apiKeyEnv ?? (item.config.type === 'freellmapi' ? `provider:${item.name}` : undefined)) && !process.env[item.config.apiKeyEnv ?? `provider:${item.name}`]?.trim()
+                    ? `not connected · missing API key`
+                    : 'configured';
+        const line = (item: typeof items[number]) => `  ${item.name} · ${status(item)}${item.config.baseUrl ? ` · ${item.config.baseUrl}` : ''}`;
         const global = items.filter(item => item.global);
         const project = items.filter(item => item.project);
         const available = items.filter(item => !item.global && !item.project && item.config.enabled !== false);
@@ -342,7 +349,7 @@ export const App = ({ permissionMode, session, settings, providerOverride, model
             return;
         }
         if (loginMenu) {
-            const providers = settings.providers().filter(item => item.global);
+            const providers = settings.providers().filter(item => item.global && item.config.enabled !== false && (!((item.config.apiKeyEnv ?? (item.config.type === 'freellmapi' ? `provider:${item.name}` : undefined))) || Boolean(process.env[item.config.apiKeyEnv ?? `provider:${item.name}`]?.trim())) && item.config.auth !== 'chatgpt');
             if (loginMenu === 'login') {
                 if (loginActions[loginChoice] === 'use subscription') {
                     await settings.addProvider('openai', { type: 'openai', auth: 'chatgpt' }, 'global');
@@ -477,8 +484,8 @@ export const App = ({ permissionMode, session, settings, providerOverride, model
             {loginMenu && (
                 <Box flexDirection="column" marginTop={1} borderStyle="round" borderColor="cyan" paddingX={1}>
                     <Text bold color="cyan">{loginMenu === 'login' ? 'Login' : 'Logout'}</Text>
-                    {loginMenu === 'login' && <Text dimColor>Connected logins: {settings.providers().filter(item => item.global).map(item => item.name).join(', ') || 'none'}</Text>}
-                    {(loginMenu === 'login' ? loginActions : settings.providers().filter(item => item.global).map(item => item.name)).map((choice, index) => (
+                    {loginMenu === 'login' && <Text dimColor>{providerListText()}</Text>}
+                    {(loginMenu === 'login' ? loginActions : settings.providers().filter(item => item.global && item.config.enabled !== false && (!((item.config.apiKeyEnv ?? (item.config.type === 'freellmapi' ? `provider:${item.name}` : undefined))) || Boolean(process.env[item.config.apiKeyEnv ?? `provider:${item.name}`]?.trim())) && item.config.auth !== 'chatgpt').map(item => item.name)).map((choice, index) => (
                         <Text key={choice} color={index === loginChoice ? 'cyan' : undefined}>{index === loginChoice ? '❯ ' : '  '}{choice}</Text>
                     ))}
                     <Text dimColor>Use arrow keys and Enter. Escape cancels.</Text>

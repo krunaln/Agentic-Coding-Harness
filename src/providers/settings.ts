@@ -150,7 +150,8 @@ export class SettingsStore {
         const providers = Object.entries(this.global.providers ?? {}).filter(([, config]) => config.enabled !== false);
         for (const [name, provider] of providers) {
             if (provider.auth === 'chatgpt') continue;
-            if (provider.apiKeyEnv && !process.env[provider.apiKeyEnv]?.trim()) continue;
+            const credentialEnv = provider.apiKeyEnv ?? (provider.type === 'freellmapi' ? `provider:${name}` : undefined);
+            if (credentialEnv && !process.env[credentialEnv]?.trim()) continue;
             const endpoint = provider.baseUrl
                 ?? (name === 'groq' ? 'https://api.groq.com/openai/v1' : name === 'openai' ? 'https://api.openai.com/v1' : undefined);
             if (!endpoint) continue;
