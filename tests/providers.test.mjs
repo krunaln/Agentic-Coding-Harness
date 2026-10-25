@@ -17,7 +17,7 @@ test('provider CLI options parse temporary overrides', () => {
 test('project models override global defaults and task models fall back to core', async t => {
     const root = await mkdtemp(path.join(tmpdir(), 'myai-settings-'));
     t.after(() => rm(root, { recursive: true, force: true }));
-    const settings = await SettingsStore.open(root);
+    const settings = await SettingsStore.open(root, { globalPath: path.join(root, 'global.json') });
     await settings.addModel('ollama:qwen', { provider: 'ollama', model: 'qwen' }, 'global');
     await settings.setDefaultModel('ollama:qwen', 'global');
     await settings.addModel('freellmapi:small', { provider: 'freellmapi', model: 'small' }, 'project');

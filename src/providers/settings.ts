@@ -39,8 +39,8 @@ export class SettingsStore {
         this.project = project;
     }
 
-    static async open(projectRoot: string) {
-        const globalPath = path.join(os.homedir(), '.myai', 'config.json');
+    static async open(projectRoot: string, options: { globalPath?: string } = {}) {
+        const globalPath = options.globalPath ?? path.join(os.homedir(), '.myai', 'config.json');
         const projectPath = path.join(path.resolve(projectRoot), '.myai', 'config.json');
         return new SettingsStore(projectRoot, await readConfig(globalPath), await readConfig(projectPath));
     }
