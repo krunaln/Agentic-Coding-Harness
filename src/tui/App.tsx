@@ -165,17 +165,6 @@ export const App = ({ permissionMode, session, settings, providerOverride, model
         if (modelPicker) {
             const choices = settings.models();
             if (key.escape) { setModelPicker(false); setModelChoice(0); return; }
-            if (key.return && !modelLoading) {
-                const selected = choices[modelChoice];
-                if (selected) {
-                    void settings.setDefaultModel(selected.name, 'global').then(() => {
-                        appendMessage('notice', `Current model: ${selected.name}`);
-                        refreshSettings(value => value + 1);
-                    });
-                }
-                setModelPicker(false); setModelChoice(0); setModelScroll(0); setInput('');
-                return;
-            }
             if (key.upArrow) setModelChoice(current => {
                 const next = (current - 1 + Math.max(choices.length, 1)) % Math.max(choices.length, 1);
                 setModelScroll(scroll => next < scroll ? next : scroll);
