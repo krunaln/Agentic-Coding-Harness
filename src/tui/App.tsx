@@ -160,6 +160,17 @@ export const App = ({ permissionMode, session, settings, providerOverride, model
         if (modelPicker) {
             const choices = settings.models();
             if (key.escape) { setModelPicker(false); setModelChoice(0); return; }
+            if (key.return && !modelLoading) {
+                const selected = choices[modelChoice];
+                if (selected) {
+                    void settings.setDefaultModel(selected.name, 'global').then(() => {
+                        appendMessage('notice', `Current model: ${selected.name}`);
+                        refreshSettings(value => value + 1);
+                    });
+                }
+                setModelPicker(false); setModelChoice(0); setModelScroll(0); setInput('');
+                return;
+            }
             if (key.upArrow) setModelChoice(current => {
                 const next = (current - 1 + Math.max(choices.length, 1)) % Math.max(choices.length, 1);
                 setModelScroll(scroll => next < scroll ? next : scroll);
@@ -365,6 +376,7 @@ export const App = ({ permissionMode, session, settings, providerOverride, model
             return;
         }
         if (modelPicker) {
+            if (modelLoading) return;
             const selected = settings.models()[modelChoice];
             if (selected) { await settings.setDefaultModel(selected.name, 'global'); appendMessage('notice', `Current model: ${selected.name}`); refreshSettings(value => value + 1); }
             setModelPicker(false); setModelChoice(0); setModelScroll(0); setInput('');
@@ -482,7 +494,7 @@ export const App = ({ permissionMode, session, settings, providerOverride, model
             {loginMenu && (
                 <Box flexDirection="column" marginTop={1} borderStyle="round" borderColor="cyan" paddingX={1}>
                     <Text bold color="cyan">{loginMenu === 'login' ? 'Login' : 'Logout'}</Text>
-                    {loginMenu === 'login' && <Text dimColor>{providerListText()}</Text>}
+                    {loginMenu === 'login' && <Text dimColor>{providerListText().replace('Providers', 'Connected logins')}</Text>}
                     {(loginMenu === 'login' ? loginActions : settings.providers().filter(item => item.global && item.config.enabled !== false && (!((item.config.apiKeyEnv ?? (item.config.type === 'freellmapi' ? `provider:${item.name}` : undefined))) || Boolean(process.env[item.config.apiKeyEnv ?? `provider:${item.name}`]?.trim())) && item.config.auth !== 'chatgpt').map(item => item.name)).map((choice, index) => (
                         <Text key={choice} color={index === loginChoice ? 'cyan' : undefined}>{index === loginChoice ? '❯ ' : '  '}{choice}</Text>
                     ))}
