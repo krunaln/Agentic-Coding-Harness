@@ -82,7 +82,7 @@ export class SettingsStore {
         if (!merged.has(defaultModel)) merged.set(defaultModel, {
             name: defaultModel, config: { provider: 'groq', model: 'openai/gpt-oss-20b' }, scope: 'global',
         });
-        return [...merged.values()];
+        return [...merged.values()].filter(model => this.provider(model.config.provider)?.enabled !== false);
     }
 
     resolveModel(task = 'core', overrideModel?: string, overrideProvider?: string) {
@@ -104,6 +104,14 @@ export class SettingsStore {
         const models = Object.values(target.models ?? {});
         if (models.some(model => model.provider === name)) throw new Error(`Provider ${name} is used by a model. Remove those models first.`);
         target.providers = { ...(target.providers ?? {}), [name]: { type: name as ProviderType, enabled: false } };
+        await this.save(scope);
+    }
+
+    async disconnectProvider(name: string, scope: ConfigScope) {
+        const target = this.config(scope);
+        const current = target.providers?.[name] ?? this.provider(name);
+        if (!current) throw new Error(`Unknown provider: ${name}`);
+        target.providers = { ...(target.providers ?? {}), [name]: { ...current, enabled: false } };
         await this.save(scope);
     }
 

@@ -335,7 +335,7 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
                 }
             } else {
                 const selected = providers[loginChoice];
-                if (selected) { await settings.removeProvider(selected.name, 'global'); appendMessage('notice', `Logged out of ${selected.name}.`); refreshSettings(value => value + 1); }
+                if (selected) { await settings.disconnectProvider(selected.name, 'global'); appendMessage('notice', `Logged out of ${selected.name}.`); refreshSettings(value => value + 1); }
             }
             setLoginMenu(null); setLoginChoice(0); setInput('');
             return;
