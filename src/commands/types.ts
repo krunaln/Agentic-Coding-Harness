@@ -10,6 +10,8 @@ export type CommandContext = {
     addProvider(args: string): Promise<void>;
     startProviderMenu(): void;
     startProviderAdd(): void;
+    startLoginMenu(): void;
+    startLogoutMenu(): void;
     removeProvider(args: string): Promise<void>;
     addModel(args: string): Promise<void>;
     removeModel(args: string): Promise<void>;

@@ -23,6 +23,7 @@ const providerChoices = ['groq', 'openai', 'freellmapi', 'ollama'] as const;
 const authChoices = ['api-key', 'chatgpt'] as const;
 const providerActions = ['list', 'add', 'remove', 'change'] as const;
 const modelActions = ['list', 'add', 'remove', 'default', 'task'] as const;
+const loginActions = ['use subscription', 'use api key'] as const;
 type ProviderWizard = { step: 'action' | 'provider' | 'auth' | 'config'; provider?: string; action?: 'add' | 'remove' | 'change'; field?: 'url' | 'apiKey'; url?: string };
 
 type AppProps = { permissionMode: PermissionMode; session: SessionStore; settings: SettingsStore; providerOverride?: string; modelOverride?: string };
@@ -50,6 +51,9 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
     const [wizardChoice, setWizardChoice] = useState(0);
     const [modelMenu, setModelMenu] = useState(false);
     const [modelChoice, setModelChoice] = useState(0);
+    const [loginMenu, setLoginMenu] = useState<'login' | 'logout' | null>(null);
+    const [loginChoice, setLoginChoice] = useState(0);
+    const [modelPicker, setModelPicker] = useState(false);
     const [, refreshSettings] = useState(0);
     const approvalResolver = useRef<((approved: boolean) => void) | null>(null);
     const createSessionAgent = (target: SessionStore) => createAgent({
@@ -130,6 +134,20 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
     const suggestions = commandRegistry.suggestions(input);
     useEffect(() => setSelectedCommand(0), [input]);
     useInput((_character, key) => {
+        if (loginMenu) {
+            const choices = loginMenu === 'login' ? loginActions : settings.providers().filter(item => item.global).map(item => item.name);
+            if (key.escape) { setLoginMenu(null); setLoginChoice(0); setInput(''); return; }
+            if (key.upArrow) setLoginChoice(current => (current - 1 + Math.max(choices.length, 1)) % Math.max(choices.length, 1));
+            if (key.downArrow) setLoginChoice(current => (current + 1) % Math.max(choices.length, 1));
+            return;
+        }
+        if (modelPicker) {
+            const choices = settings.models();
+            if (key.escape) { setModelPicker(false); setModelChoice(0); return; }
+            if (key.upArrow) setModelChoice(current => (current - 1 + Math.max(choices.length, 1)) % Math.max(choices.length, 1));
+            if (key.downArrow) setModelChoice(current => (current + 1) % Math.max(choices.length, 1));
+            return;
+        }
         if (modelMenu) {
             if (key.escape) { setModelMenu(false); setModelChoice(0); setInput(''); return; }
             if (key.upArrow) setModelChoice(current => (current - 1 + modelActions.length) % modelActions.length);
@@ -304,9 +322,33 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
             await addProviderFromWizard(providerWizard.provider ?? selected, providerWizard.step === 'auth' ? selected as 'api-key' | 'chatgpt' : 'api-key');
             return;
         }
+        if (loginMenu) {
+            const providers = settings.providers().filter(item => item.global);
+            if (loginMenu === 'login') {
+                if (loginActions[loginChoice] === 'use subscription') {
+                    await settings.addProvider('openai', { type: 'openai', auth: 'chatgpt' }, 'global');
+                    refreshSettings(value => value + 1);
+                    appendMessage('notice', 'ChatGPT subscription login is saved. Official sign-in will be added next.');
+                } else {
+                    setLoginMenu(null); setLoginChoice(0); setProviderWizard({ step: 'provider', action: 'add' }); setWizardChoice(0); setInput('');
+                    return;
+                }
+            } else {
+                const selected = providers[loginChoice];
+                if (selected) { await settings.removeProvider(selected.name, 'global'); appendMessage('notice', `Logged out of ${selected.name}.`); refreshSettings(value => value + 1); }
+            }
+            setLoginMenu(null); setLoginChoice(0); setInput('');
+            return;
+        }
+        if (modelPicker) {
+            const selected = settings.models()[modelChoice];
+            if (selected) { await settings.setDefaultModel(selected.name, 'global'); appendMessage('notice', `Current model: ${selected.name}`); refreshSettings(value => value + 1); }
+            setModelPicker(false); setModelChoice(0); setInput('');
+            return;
+        }
         if (modelMenu) {
             const action = modelActions[modelChoice];
-            if (action === 'list') appendMessage('notice', modelListText());
+            if (action === 'list') { setModelMenu(false); setModelPicker(true); setModelChoice(0); setInput(''); return; }
             else appendMessage('notice', `Use /model ${action} ... to continue.`);
             setModelMenu(false); setModelChoice(0); setInput('');
             return;
@@ -335,6 +377,8 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
                     permissionInfo: () => `Permission mode: ${permissionMode}`,
                     startProviderMenu: () => { setProviderWizard({ step: 'action' }); setWizardChoice(0); setInput(''); },
                     startProviderAdd: () => { setProviderWizard({ step: 'provider', action: 'add' }); setWizardChoice(0); setInput(''); appendMessage('notice', 'Choose a provider to add.'); },
+                    startLoginMenu: () => { setLoginMenu('login'); setLoginChoice(0); setInput(''); },
+                    startLogoutMenu: () => { setLoginMenu('logout'); setLoginChoice(0); setInput(''); },
                     providerInfo: providerListText,
                     modelInfo: modelListText,
                     addProvider: async args => {
@@ -414,6 +458,22 @@ const App = ({ permissionMode, session, settings, providerOverride, modelOverrid
                             {index === wizardChoice ? '❯ ' : '  '}{choice}
                         </Text>
                     ))}
+                    <Text dimColor>Use arrow keys and Enter. Escape cancels.</Text>
+                </Box>
+            )}
+            {loginMenu && (
+                <Box flexDirection="column" marginTop={1} borderStyle="round" borderColor="cyan" paddingX={1}>
+                    <Text bold color="cyan">{loginMenu === 'login' ? 'Login' : 'Logout'}</Text>
+                    {(loginMenu === 'login' ? loginActions : settings.providers().filter(item => item.global).map(item => item.name)).map((choice, index) => (
+                        <Text key={choice} color={index === loginChoice ? 'cyan' : undefined}>{index === loginChoice ? '❯ ' : '  '}{choice}</Text>
+                    ))}
+                    <Text dimColor>Use arrow keys and Enter. Escape cancels.</Text>
+                </Box>
+            )}
+            {modelPicker && (
+                <Box flexDirection="column" marginTop={1} borderStyle="round" borderColor="magenta" paddingX={1}>
+                    <Text bold color="magenta">Choose model (current: {settings.resolveModel('core')?.name ?? 'none'})</Text>
+                    {settings.models().map((model, index) => <Text key={model.name} color={index === modelChoice ? 'magenta' : undefined}>{index === modelChoice ? '❯ ' : '  '}{model.name} [{model.config.provider}]</Text>)}
                     <Text dimColor>Use arrow keys and Enter. Escape cancels.</Text>
                 </Box>
             )}

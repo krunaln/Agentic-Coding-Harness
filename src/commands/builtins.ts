@@ -17,6 +17,8 @@ export const builtinCommands: SlashCommand[] = [
     },
     { name: 'session', description: 'Show current session information', execute: (_args, context) => context.show(context.sessionInfo()) },
     { name: 'permissions', aliases: ['permission'], description: 'Show the active permission mode', execute: (_args, context) => context.show(context.permissionInfo()) },
+    { name: 'login', description: 'Connect an AI account or API key', execute: (_args, context) => context.startLoginMenu() },
+    { name: 'logout', description: 'Remove a connected login', execute: (_args, context) => context.startLogoutMenu() },
     { name: 'provider', description: 'List, add, or remove a provider', usage: '<list|add|remove> [name]', execute: async (args, context) => {
         const [action, ...rest] = args.split(/\s+/).filter(Boolean);
         if (!action) return context.startProviderMenu();
