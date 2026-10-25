@@ -159,6 +159,7 @@ export function createAgent(options: CreateAgentOptions = {}) {
                     const metadata = response.response_metadata as Record<string, unknown> | undefined;
                     const routed = response.additional_kwargs?._routed_via as { model?: string } | undefined;
                     const usedModel = typeof metadata?.model === 'string' ? metadata.model
+                        : typeof metadata?.model_name === 'string' ? metadata.model_name
                         : typeof routed?.model === 'string' ? routed.model : undefined;
                     if (usedModel && usedModel !== reportedModel) {
                         reportedModel = usedModel;
