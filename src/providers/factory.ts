@@ -21,10 +21,11 @@ export function createProviderModel(choice: ModelChoice, provider: ProviderConfi
         return new ChatOpenAI({ apiKey: key, model: choice.config.model, temperature: 0 });
     }
     const key = apiKey(provider);
+    const baseUrl = provider.baseUrl && (/\/v1$/i.test(provider.baseUrl) ? provider.baseUrl : `${provider.baseUrl.replace(/\/$/, '')}/v1`);
     return new ChatOpenAI({
         apiKey: key || 'local',
         model: choice.config.model,
         temperature: 0,
-        configuration: { baseURL: provider.baseUrl },
+        configuration: { baseURL: baseUrl },
     });
 }

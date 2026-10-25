@@ -154,7 +154,9 @@ export class SettingsStore {
                 const headers: Record<string, string> = {};
                 const key = provider.apiKeyEnv ? process.env[provider.apiKeyEnv] : undefined;
                 if (key) headers.Authorization = `Bearer ${key}`;
-                const modelsUrl = `${provider.baseUrl.replace(/\/$/, '')}/models${name === 'freellmapi' ? '?available=true' : ''}`;
+                const baseUrl = provider.baseUrl.replace(/\/$/, '');
+                const apiBase = /\/v1$/i.test(baseUrl) ? baseUrl : `${baseUrl}/v1`;
+                const modelsUrl = `${apiBase}/models${name === 'freellmapi' ? '?available=true' : ''}`;
                 const response = await fetch(modelsUrl, { headers });
                 if (!response.ok) continue;
                 const payload = await response.json() as { data?: Array<{ id?: string; execution_status?: string }> };
